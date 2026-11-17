@@ -81,6 +81,22 @@ app.post('/test', async (req, res) => {
   } catch (e) { res.status(502).json({ error: e.statusCode || e.message }); }
 });
 
+// 診斷用：直接對所有已訂閱裝置送一則測試推播，並把每台的結果回報
+app.all('/testall', async (req, res) => {
+  if (TICK_TOKEN && req.query.token !== TICK_TOKEN) return res.status(403).json({ error: 'bad token' });
+  const results = [];
+  for (const [endpoint, dev] of Object.entries(devices)) {
+    try {
+      await webpush.sendNotification(dev.subscription, JSON.stringify({ title: '診斷測試', body: '這則是後端直接送出的 ✅' }));
+      results.push({ endpoint: endpoint.slice(0, 40) + '…', ok: true });
+    } catch (e) {
+      results.push({ endpoint: endpoint.slice(0, 40) + '…', ok: false, status: e.statusCode || null, error: String(e.body || e.message).slice(0, 200) });
+      if (e.statusCode === 404 || e.statusCode === 410) delete devices[endpoint];
+    }
+  }
+  res.json({ devices: results.length, results });
+});
+
 // 外部 cron 每分鐘打一次：發送到點的提醒
 async function tick() {
   const now = Date.now();
