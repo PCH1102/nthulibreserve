@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>清大圖書館座位</title>
+<meta name="theme-color" content="#5b1a78">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="圖書館座位">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#f6f3f8; --card:#fff; --ink:#1d1524; --mute:#6f6578; --line:#e7e0ec;
+  --brand:#5b1a78; --brand-ink:#fff; --ok:#1f9d6b; --warn:#d98a14; --full:#d0453c; --track:#ece6f0;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#141018; --card:#1f1926; --ink:#f1ecf5; --mute:#a497b0; --line:#2f2738;
+    --brand:#b684d6; --brand-ink:#1a1020; --track:#2c2436; }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  padding:calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 24px);
+  max-width:520px; margin:0 auto; min-height:100vh;
+  -webkit-tap-highlight-color:transparent;
+}
+header{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:16px}
+h1{font-size:22px; margin:0; letter-spacing:.02em}
+.sub{font-size:13px; color:var(--mute); margin-top:4px}
+#refresh{
+  border:1px solid var(--line); background:var(--card); color:var(--ink);
+  border-radius:999px; height:40px; padding:0 14px; font-size:14px; font-family:inherit;
+}
+#refresh:active{transform:scale(.97)}
+#refresh[disabled]{opacity:.5}
+.card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px 18px; margin-bottom:12px}
+.row{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+.name{font-size:15px; color:var(--mute)}
+.num{font-size:34px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.1}
+.num small{font-size:15px; font-weight:500; color:var(--mute)}
+.bar{height:8px; border-radius:99px; background:var(--track); margin-top:12px; overflow:hidden}
+.bar i{display:block; height:100%; width:0; border-radius:99px; background:var(--ok); transition:width .5s ease}
+.note{font-size:13px; color:var(--mute); margin-top:8px}
+.tag{font-size:12px; padding:3px 9px; border-radius:99px; background:var(--track); color:var(--mute); white-space:nowrap}
+.tag.ok{color:var(--ok)} .tag.warn{color:var(--warn)} .tag.full{color:var(--full)}
+.err{color:var(--full)}
+h2{font-size:15px; color:var(--mute); font-weight:600; margin:20px 4px 8px}
+#spaces{padding:6px 18px}
+.sp{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); font-size:16px}
+.sp:last-child{border-bottom:0}
+.sp b{font-size:20px; font-variant-numeric:tabular-nums}
+.sp.zero{color:var(--mute)} .sp.zero b{font-weight:500}
+.actions{margin-top:20px; display:grid; gap:10px}
+.btn{
+  display:flex; align-items:center; justify-content:center; text-decoration:none;
+  min-height:54px; border-radius:16px; font-size:17px; font-weight:600;
+}
+.btn.primary{background:var(--brand); color:var(--brand-ink)}
+.btn.ghost{border:1px solid var(--line); color:var(--ink); background:var(--card); font-weight:500; font-size:15px; min-height:48px}
+.btn:active{opacity:.85}
+footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; line-height:1.6}
+@media (prefers-reduced-motion:reduce){ .bar i{transition:none} }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>清大圖書館座位</h1>
+    <div class="sub" id="updated">讀取中…</div>
+  </div>
+  <button id="refresh" type="button">重新整理</button>
+</header>
+
+<main id="cards"></main>
+
+<h2>目前可預約空間</h2>
+<section class="card" id="spaces"><div class="note">讀取中…</div></section>
+
+<div class="actions">
+  <a class="btn primary" id="book" href="https://idm.nthu.ust.edu.tw/openid/886UST_NTHU/authorize/?client_id=227897&response_type=code&redirect_uri=https://libsms.lib.nthu.edu.tw/openidcallback.aspx&state=RWD&scope=openid" target="_blank" rel="noopener">登入並預約座位</a>
+  <a class="btn ghost" href="https://libsms.lib.nthu.edu.tw/build/" target="_blank" rel="noopener">開啟預約系統首頁</a>
+</div>
+
+<footer>人數資料來自清大圖書館公開資訊，每分鐘自動更新。<br>非官方工具，預約仍在圖書館官方系統完成。</footer>
+
+<script>
+const SOURCES = [
+  { id:'main',  name:'總館在館人數', cap:1365,
+    url:'https://libsms.lib.nthu.edu.tw/api/user/M_LibUser/stay', pick:async r=>(await r.json()).count },
+  { id:'night', name:'夜讀區', cap:200,
+    url:'https://libsms.lib.nthu.edu.tw/API/Nthu24kIn.aspx', pick:async r=>parseInt((await r.text()).trim(),10) },
+  { id:'hs',    name:'人社分館在館人數', cap:null,
+    url:'https://libsms.lib.nthu.edu.tw/api/user/libuser/stay', pick:async r=>(await r.json()).count },
+];
+
+const cards = document.getElementById('cards');
+const updated = document.getElementById('updated');
+const btn = document.getElementById('refresh');
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render(s, v, failed){
+  let el = document.getElementById('c-'+s.id);
+  if(!el){ el = document.createElement('section'); el.className='card'; el.id='c-'+s.id; cards.appendChild(el); }
+  if(failed){
+    el.innerHTML = `<div class="row"><span class="name">${esc(s.name)}</span><span class="tag err">讀取失敗</span></div>
+      <div class="note">目前無法取得這項資料。</div>`;
+    return;
+  }
+  let used, cap = s.cap, left = null;
+  if(v && typeof v === 'object'){ used=v.used; cap=v.cap; left=v.left; } else used = v;
+  if(!Number.isFinite(used)){ return render(s, null, true); }
+  let tag = '', bar = '', note = '';
+  if(cap){
+    const pct = Math.min(100, Math.round(used/cap*100));
+    const cls = pct>=90 ? 'full' : pct>=70 ? 'warn' : 'ok';
+    const word = pct>=90 ? '接近滿' : pct>=70 ? '偏多' : '寬鬆';
+    const color = cls==='full' ? 'var(--full)' : cls==='warn' ? 'var(--warn)' : 'var(--ok)';
+    tag = `<span class="tag ${cls}">${word} ${pct}%</span>`;
+    bar = `<div class="bar"><i style="width:${pct}%;background:${color}"></i></div>`;
+    note = `<div class="note">剩餘 ${left ?? Math.max(0, cap-used)}</div>`;
+  }
+  el.innerHTML = `<div class="row"><span class="name">${esc(s.name)}</span>${tag}</div>
+    <div class="num">${used}${cap ? ` <small>/ ${cap}</small>` : ' <small>人</small>'}</div>${bar}${note}`;
+}
+
+const spacesEl = document.getElementById('spaces');
+async function loadSpaces(){
+  try{
+    const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 8000);
+    const r = await fetch('https://libsms.lib.nthu.edu.tw/system/status.aspx', { cache:'no-store', signal:ctl.signal });
+    clearTimeout(t);
+    if(!r.ok) throw new Error(r.status);
+    const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+    const rows = [...doc.querySelectorAll('section.status tr')]
+      .map(tr=>[...tr.querySelectorAll('td')].map(td=>td.textContent.trim()))
+      .filter(c=>c.length>=2 && c[0] && /^\d+$/.test(c[1]));
+    if(!rows.length) throw new Error('empty');
+    spacesEl.innerHTML = rows.map(([name,n])=>
+      `<div class="sp${n==='0'?' zero':''}"><span>${esc(name)}</span><b>${esc(n)}</b></div>`).join('');
+    return true;
+  }catch(e){
+    spacesEl.innerHTML = '<div class="note err" style="padding:10px 0">目前無法取得可預約空間資料。</div>';
+    return false;
+  }
+}
+
+async function load(){
+  btn.disabled = true;
+  let ok = 0;
+  const sp = loadSpaces();
+  await Promise.all(SOURCES.map(async s=>{
+    try{
+      const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 8000);
+      const r = await fetch(s.url, { cache:'no-store', signal:ctl.signal }); clearTimeout(t);
+      if(!r.ok) throw new Error(r.status);
+      render(s, await s.pick(r)); ok++;
+    }catch(e){ render(s, null, true); }
+  }));
+  if(await sp) ok++;
+  const now = new Date();
+  updated.textContent = ok
+    ? `更新於 ${now.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}`
+    : '無法連線，請檢查網路後再試';
+  updated.classList.toggle('err', !ok);
+  btn.disabled = false;
+}
+
+// 依固定順序先放好卡片位置，避免載入時跳動
+SOURCES.forEach(s=>{ const el=document.createElement('section'); el.className='card'; el.id='c-'+s.id;
+  el.innerHTML=`<div class="row"><span class="name">${esc(s.name)}</span></div><div class="num">–</div>`; cards.appendChild(el); });
+
+btn.addEventListener('click', load);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) load(); });
+setInterval(()=>{ if(!document.hidden) load(); }, 60000);
+load();
+
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
