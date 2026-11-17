@@ -65,6 +65,16 @@ h2{font-size:15px; color:var(--mute); font-weight:600; margin:20px 4px 8px}
 #remind .chk input[type=checkbox]{width:22px; height:22px; accent-color:var(--brand)}
 #remind .chk input[type=number]{width:72px; text-align:center}
 #remind button{border:0; width:100%; font-family:inherit; margin-top:4px}
+.push-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+.push-row b{font-size:15px}
+#push-box.on b{color:var(--ok)}
+#bookings:empty::after{content:'還沒有提醒。'; color:var(--mute); font-size:14px}
+.bk{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border-bottom:1px solid var(--line)}
+.bk:last-child{border-bottom:0}
+.bk .t{font-size:15px} .bk .d{font-size:13px; color:var(--mute); margin-top:2px}
+.bk.past{opacity:.5}
+.bk button{border:0; background:none; color:var(--full); font:inherit; font-size:14px; padding:6px}
+#ics-link{color:var(--brand); margin-left:6px}
 .actions{margin-top:20px; display:grid; gap:10px}
 .btn{
   display:flex; align-items:center; justify-content:center; text-decoration:none;
@@ -97,6 +107,13 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
 </div>
 
 <h2>預約提醒</h2>
+<div class="card" id="push-box">
+  <div class="push-row">
+    <div><b id="push-state">手機推播：未開啟</b><div class="note" id="push-sub">開啟後，提醒時間一到會直接跳在手機上。</div></div>
+    <button class="btn ghost" id="push-btn" type="button" style="min-height:40px;padding:0 14px;white-space:nowrap">開啟推播</button>
+  </div>
+</div>
+
 <form class="card" id="remind">
   <label>空間
     <input id="r-space" list="r-spaces" placeholder="例如：討論室" required>
@@ -111,9 +128,14 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
     <label for="r-before-on">開始前</label><input id="r-before" type="number" min="1" max="720" value="10" inputmode="numeric"><span>分鐘提醒</span></div>
   <div class="chk"><input id="r-after-on" type="checkbox">
     <label for="r-after-on">開始後</label><input id="r-after" type="number" min="1" max="720" value="5" inputmode="numeric"><span>分鐘提醒</span></div>
-  <button class="btn primary" type="submit">加入手機行事曆</button>
-  <div class="note" id="r-msg">預約完成後在這裡填入時間，會產生一個帶提醒的行事曆活動，由手機行事曆在指定時間通知你。</div>
+  <button class="btn primary" type="submit">新增提醒</button>
+  <div class="note" id="r-msg">填入你的預約時間，按新增後會排進提醒清單。<a href="javascript:;" id="ics-link">改用行事曆檔</a></div>
 </form>
+
+<section class="card" id="booking-box" hidden>
+  <h3 style="margin:0 0 4px;font-size:15px">我的提醒</h3>
+  <div id="bookings"></div>
+</section>
 
 <footer>人數資料來自清大圖書館公開資訊，每分鐘自動更新。<br>非官方工具，預約仍在圖書館官方系統完成。</footer>
 
@@ -265,37 +287,138 @@ function buildICS({space, start, end, before, after}){
   return lines.join('\r\n') + '\r\n';
 }
 
-$('remind').addEventListener('submit', async ev=>{
-  ev.preventDefault();
+// === 推播後端網址：部署到 Render 後，把下面換成你的網址（結尾不要加斜線）===
+const PUSH_API = '';   // 例如 'https://nthu-lib-push.onrender.com'
+
+// ---- 讀表單、驗證，回傳一筆預約或 null ----
+function readForm(){
   const msg = $('r-msg'); msg.classList.remove('err');
+  const fail = t => { msg.textContent = t; msg.classList.add('err'); return null; };
   const space = $('r-space').value.trim();
+  if(!space) return fail('請填空間名稱。');
   const start = new Date(`${$('r-date').value}T${$('r-start').value}`);
   let end = new Date(`${$('r-date').value}T${$('r-end').value}`);
-  if(isNaN(start) || isNaN(end)){ msg.textContent='請填好日期與時間。'; msg.classList.add('err'); return; }
+  if(isNaN(start) || isNaN(end)) return fail('請填好日期與時間。');
   if(end <= start) end = new Date(end.getTime() + 864e5);   // 跨夜（例如夜讀區）
   const before = $('r-before-on').checked ? parseInt($('r-before').value,10) : 0;
   const after  = $('r-after-on').checked  ? parseInt($('r-after').value,10)  : 0;
-  if(($('r-before-on').checked && !(before>0)) || ($('r-after-on').checked && !(after>0))){
-    msg.textContent='提醒的分鐘數請填大於 0 的數字。'; msg.classList.add('err'); return; }
-  if(!before && !after){ msg.textContent='請至少勾選一個提醒。'; msg.classList.add('err'); return; }
+  if(($('r-before-on').checked && !(before>0)) || ($('r-after-on').checked && !(after>0))) return fail('提醒的分鐘數請填大於 0 的數字。');
+  if(!before && !after) return fail('請至少勾選一個提醒。');
   try{ localStorage.setItem(SET_KEY, JSON.stringify({space, before:$('r-before').value, after:$('r-after').value,
     beforeOn:$('r-before-on').checked, afterOn:$('r-after-on').checked})); }catch(e){}
+  return { id:'bk'+Date.now(), space, start:start.toISOString(), end:end.toISOString(), before, after };
+}
 
-  const file = new File([buildICS({space,start,end,before,after})], 'library-booking.ics', {type:'text/calendar'});
-  try{
-    if(navigator.canShare && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file], title:'圖書館預約提醒'});
-      msg.textContent='請在跳出的選單選擇「行事曆」完成加入。'; return;
-    }
-  }catch(e){ if(e && e.name==='AbortError'){ msg.textContent='已取消。'; return; } }
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(file); a.download = file.name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
-  msg.textContent='已下載行事曆檔，點開它並選擇「行事曆」即可加入。';
+// ---- 我的提醒清單（存在手機裡）----
+const BOOK_KEY = 'nthu-lib-bookings';
+let bookings = [];
+try{ bookings = JSON.parse(localStorage.getItem(BOOK_KEY)) || []; }catch(e){}
+function saveBookings(){ try{ localStorage.setItem(BOOK_KEY, JSON.stringify(bookings)); }catch(e){} }
+const fmtDate = iso => { const d=new Date(iso);
+  return `${d.getMonth()+1}/${d.getDate()}（${'日一二三四五六'[d.getDay()]}）${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+
+function renderBookings(){
+  bookings.sort((a,b)=>new Date(a.start)-new Date(b.start));
+  $('booking-box').hidden = bookings.length===0;
+  $('bookings').innerHTML = bookings.map(b=>{
+    const past = new Date(b.start).getTime() + (b.after||0)*60000 < Date.now();
+    const parts = [b.before?`前 ${b.before} 分`:null, b.after?`後 ${b.after} 分`:null].filter(Boolean).join('、');
+    return `<div class="bk${past?' past':''}"><div><div class="t">${esc(b.space)}</div>
+      <div class="d">${fmtDate(b.start)}｜提醒：${parts}</div></div>
+      <button type="button" data-del="${b.id}">刪除</button></div>`;
+  }).join('');
+}
+$('bookings').addEventListener('click', e=>{
+  const id = e.target.getAttribute('data-del'); if(!id) return;
+  bookings = bookings.filter(b=>b.id!==id); saveBookings(); renderBookings(); syncReminders();
 });
 
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+// ---- 把清單換算成提醒時間，送到後端 ----
+function remindersFromBookings(){
+  const out = [];
+  for(const b of bookings){
+    const start = new Date(b.start);
+    if(b.before) out.push({ id:b.id+'-b', fireAt:new Date(start.getTime()-b.before*60000).toISOString(),
+      title:'圖書館預約即將開始', body:`${b.space}　${b.before} 分鐘後（${pad(start.getHours())}:${pad(start.getMinutes())}）開始` });
+    if(b.after) out.push({ id:b.id+'-a', fireAt:new Date(start.getTime()+b.after*60000).toISOString(),
+      title:'記得刷卡啟用', body:`${b.space} 預約已開始 ${b.after} 分鐘，請於時段內刷卡啟用` });
+  }
+  return out;
+}
+let pushSub = null;
+async function syncReminders(){
+  if(!PUSH_API || !pushSub) return;
+  try{
+    await fetch(PUSH_API+'/sync', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ subscription: pushSub, reminders: remindersFromBookings() }) });
+  }catch(e){ console.error('sync failed', e); }
+}
+
+$('remind').addEventListener('submit', ev=>{
+  ev.preventDefault();
+  const b = readForm(); if(!b) return;
+  bookings.push(b); saveBookings(); renderBookings(); syncReminders();
+  $('r-msg').classList.remove('err');
+  $('r-msg').innerHTML = (PUSH_API && pushSub) ? '已加入，時間到會推播通知你。'
+    : '已加入清單。<a href="javascript:;" id="ics-link2">開啟推播</a>後才會真的通知你。';
+  const l2 = document.getElementById('ics-link2'); if(l2) l2.onclick = enablePush;
+});
+
+// 保留行事曆檔作為備用
+$('r-msg').addEventListener('click', e=>{
+  if(e.target.id!=='ics-link') return;
+  const b = readForm(); if(!b) return;
+  const file = new File([buildICS({space:b.space,start:new Date(b.start),end:new Date(b.end),before:b.before,after:b.after})],
+    'library-booking.ics', {type:'text/calendar'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+});
+
+// ---- 推播 ----
+function b64ToUint8(s){ const p='='.repeat((4-s.length%4)%4); const b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from([...b].map(c=>c.charCodeAt(0))); }
+
+async function refreshPushState(){
+  const box=$('push-box'), st=$('push-state'), sub=$('push-sub'), btn=$('push-btn');
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+    st.textContent='此瀏覽器不支援推播'; sub.textContent='請用 Chrome 開啟，並把 app 加到主畫面。'; btn.hidden=true; return; }
+  if(!PUSH_API){ st.textContent='手機推播：尚未設定後端'; sub.textContent='部署 Render 後端並填入網址後即可開啟。'; btn.hidden=true; return; }
+  const reg = await navigator.serviceWorker.ready;
+  pushSub = await reg.pushManager.getSubscription();
+  if(pushSub && Notification.permission==='granted'){
+    box.classList.add('on'); st.textContent='手機推播：已開啟'; sub.textContent='提醒會直接跳在手機上。'; btn.textContent='發送測試';
+  }else{
+    box.classList.remove('on'); st.textContent='手機推播：未開啟'; sub.textContent='開啟後，提醒時間一到會直接跳在手機上。'; btn.textContent='開啟推播';
+  }
+}
+async function enablePush(){
+  if(!PUSH_API){ $('push-sub').textContent='還沒設定後端網址。'; return; }
+  const btn=$('push-btn'); btn.disabled=true;
+  try{
+    const perm = await Notification.requestPermission();
+    if(perm!=='granted'){ $('push-sub').textContent='你拒絕了通知權限，請到瀏覽器設定裡允許。'; return; }
+    const reg = await navigator.serviceWorker.ready;
+    const { key } = await (await fetch(PUSH_API+'/vapid')).json();
+    pushSub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:b64ToUint8(key) });
+    await syncReminders();
+    await refreshPushState();
+  }catch(e){ $('push-sub').textContent='開啟失敗：'+(e.message||e); $('push-sub').parentElement.parentElement; console.error(e); }
+  finally{ btn.disabled=false; }
+}
+$('push-btn').addEventListener('click', async ()=>{
+  if(pushSub && Notification.permission==='granted'){   // 已開啟 → 發測試
+    $('push-sub').textContent='測試推播已送出，稍等幾秒…';
+    try{ await fetch(PUSH_API+'/test', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ subscription: pushSub }) }); }catch(e){ $('push-sub').textContent='測試失敗：'+e.message; }
+  }else enablePush();
+});
+
+renderBookings();
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js')
+    .then(()=>refreshPushState().then(()=>{ if(pushSub) syncReminders(); }))
+    .catch(()=>{});
+}
 </script>
 </body>
 </html>
