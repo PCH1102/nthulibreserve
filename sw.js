@@ -1,5 +1,5 @@
 // 只快取 app 外殼，人數資料一律走網路
-const CACHE = 'nthu-lib-v1';
+const CACHE = 'nthu-lib-v2';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -16,12 +16,13 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  // 先網路、失敗才用快取：有更新時立刻拿到新版，離線時仍可開啟
+  // 先回快取讓 app 立刻開啟，同時在背景抓新版，下次開啟就會是新版
   e.respondWith(
-    fetch(e.request).then(r => {
-      const copy = r.clone();
-      caches.open(CACHE).then(c => c.put(e.request, copy));
-      return r;
-    }).catch(() => caches.match(e.request))
+    caches.open(CACHE).then(async c => {
+      const hit = await c.match(e.request, { ignoreSearch: true });
+      const net = fetch(e.request).then(r => { if (r.ok) c.put(e.request, r.clone()); return r; });
+      if (hit) { e.waitUntil(net.catch(() => {})); return hit; }
+      return net;
+    })
   );
 });

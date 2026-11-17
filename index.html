@@ -55,6 +55,16 @@ h2{font-size:15px; color:var(--mute); font-weight:600; margin:20px 4px 8px}
 .sp:last-child{border-bottom:0}
 .sp b{font-size:20px; font-variant-numeric:tabular-nums}
 .sp.zero{color:var(--mute)} .sp.zero b{font-weight:500}
+#remind{display:grid; gap:12px}
+#remind label{font-size:14px; color:var(--mute); display:grid; gap:4px}
+#remind input:not([type=checkbox]){font:inherit; font-size:16px; color:var(--ink); background:var(--bg);
+  border:1px solid var(--line); border-radius:10px; height:44px; padding:0 10px; width:100%; min-width:0}
+#remind .two{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+#remind .chk{display:flex; align-items:center; gap:8px; font-size:15px}
+#remind .chk label{display:inline; color:var(--ink); font-size:15px}
+#remind .chk input[type=checkbox]{width:22px; height:22px; accent-color:var(--brand)}
+#remind .chk input[type=number]{width:72px; text-align:center}
+#remind button{border:0; width:100%; font-family:inherit; margin-top:4px}
 .actions{margin-top:20px; display:grid; gap:10px}
 .btn{
   display:flex; align-items:center; justify-content:center; text-decoration:none;
@@ -85,6 +95,25 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
   <a class="btn primary" id="book" href="https://idm.nthu.ust.edu.tw/openid/886UST_NTHU/authorize/?client_id=227897&response_type=code&redirect_uri=https://libsms.lib.nthu.edu.tw/openidcallback.aspx&state=RWD&scope=openid" target="_blank" rel="noopener">登入並預約座位</a>
   <a class="btn ghost" href="https://libsms.lib.nthu.edu.tw/build/" target="_blank" rel="noopener">開啟預約系統首頁</a>
 </div>
+
+<h2>預約提醒</h2>
+<form class="card" id="remind">
+  <label>空間
+    <input id="r-space" list="r-spaces" placeholder="例如：討論室" required>
+    <datalist id="r-spaces"></datalist>
+  </label>
+  <label>日期 <input id="r-date" type="date" required></label>
+  <div class="two">
+    <label>開始 <input id="r-start" type="time" required></label>
+    <label>結束 <input id="r-end" type="time" required></label>
+  </div>
+  <div class="chk"><input id="r-before-on" type="checkbox" checked>
+    <label for="r-before-on">開始前</label><input id="r-before" type="number" min="1" max="720" value="10" inputmode="numeric"><span>分鐘提醒</span></div>
+  <div class="chk"><input id="r-after-on" type="checkbox">
+    <label for="r-after-on">開始後</label><input id="r-after" type="number" min="1" max="720" value="5" inputmode="numeric"><span>分鐘提醒</span></div>
+  <button class="btn primary" type="submit">加入手機行事曆</button>
+  <div class="note" id="r-msg">預約完成後在這裡填入時間，會產生一個帶提醒的行事曆活動，由手機行事曆在指定時間通知你。</div>
+</form>
 
 <footer>人數資料來自清大圖書館公開資訊，每分鐘自動更新。<br>非官方工具，預約仍在圖書館官方系統完成。</footer>
 
@@ -141,44 +170,130 @@ async function loadSpaces(){
       .map(tr=>[...tr.querySelectorAll('td')].map(td=>td.textContent.trim()))
       .filter(c=>c.length>=2 && c[0] && /^\d+$/.test(c[1]));
     if(!rows.length) throw new Error('empty');
-    spacesEl.innerHTML = rows.map(([name,n])=>
-      `<div class="sp${n==='0'?' zero':''}"><span>${esc(name)}</span><b>${esc(n)}</b></div>`).join('');
+    renderSpaces(rows);
+    state.spaces = rows;
     return true;
   }catch(e){
-    spacesEl.innerHTML = '<div class="note err" style="padding:10px 0">目前無法取得可預約空間資料。</div>';
+    if(!state.spaces) spacesEl.innerHTML = '<div class="note err" style="padding:10px 0">目前無法取得可預約空間資料。</div>';
     return false;
   }
 }
+function renderSpaces(rows){
+  spacesEl.innerHTML = rows.map(([name,n])=>
+    `<div class="sp${n==='0'?' zero':''}"><span>${esc(name)}</span><b>${esc(n)}</b></div>`).join('');
+}
 
+// 上次成功的資料存在手機裡：開啟時先顯示，連線慢也不會是空白
+const LAST_KEY = 'nthu-lib-last';
+let state = { t:0, vals:{}, spaces:null };
+try{ const s = JSON.parse(localStorage.getItem(LAST_KEY)); if(s && s.vals) state = s; }catch(e){}
+const hm = t => new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false});
+
+let loading = false;
 async function load(){
-  btn.disabled = true;
-  let ok = 0;
+  if(loading) return;
+  loading = true; btn.disabled = true;
+  updated.classList.remove('err');
+  updated.textContent = state.t ? `更新中…（目前顯示 ${hm(state.t)} 的資料）` : '讀取中…';
+  let ok = 0, failed = 0;
   const sp = loadSpaces();
   await Promise.all(SOURCES.map(async s=>{
     try{
-      const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 8000);
+      const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 12000);
       const r = await fetch(s.url, { cache:'no-store', signal:ctl.signal }); clearTimeout(t);
       if(!r.ok) throw new Error(r.status);
-      render(s, await s.pick(r)); ok++;
-    }catch(e){ render(s, null, true); }
+      const v = await s.pick(r);
+      render(s, v); state.vals[s.id] = v; ok++;
+    }catch(e){
+      failed++;
+      if(!(s.id in state.vals)) render(s, null, true);   // 有舊資料就保留舊資料
+    }
   }));
-  if(await sp) ok++;
-  const now = new Date();
-  updated.textContent = ok
-    ? `更新於 ${now.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}`
-    : '無法連線，請檢查網路後再試';
-  updated.classList.toggle('err', !ok);
-  btn.disabled = false;
+  if(await sp) ok++; else failed++;
+  if(ok){
+    if(!failed) state.t = Date.now();
+    try{ localStorage.setItem(LAST_KEY, JSON.stringify(state)); }catch(e){}
+  }
+  if(!failed) updated.textContent = `更新於 ${hm(state.t)}`;
+  else if(state.t) updated.textContent = `圖書館伺服器回應慢，部分仍是 ${hm(state.t)} 的資料`;
+  else updated.textContent = ok ? '部分資料讀取失敗，可按重新整理再試' : '無法連線，請檢查網路後再試';
+  updated.classList.toggle('err', !!failed);
+  loading = false; btn.disabled = false;
 }
 
 // 依固定順序先放好卡片位置，避免載入時跳動
 SOURCES.forEach(s=>{ const el=document.createElement('section'); el.className='card'; el.id='c-'+s.id;
-  el.innerHTML=`<div class="row"><span class="name">${esc(s.name)}</span></div><div class="num">–</div>`; cards.appendChild(el); });
+  el.innerHTML=`<div class="row"><span class="name">${esc(s.name)}</span></div><div class="num">–</div>`; cards.appendChild(el);
+  if(s.id in state.vals) render(s, state.vals[s.id]); });
+if(state.spaces) renderSpaces(state.spaces);
 
 btn.addEventListener('click', load);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) load(); });
 setInterval(()=>{ if(!document.hidden) load(); }, 60000);
 load();
+
+// ---- 預約提醒：產生帶提醒的行事曆檔 (.ics) ----
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const SET_KEY = 'nthu-lib-remind';
+(function initRemind(){
+  $('r-spaces').innerHTML = ['研究小間','討論室','聆賞席','人社分館討論室','簡報練習室','團體室','享時小間','夜讀區',
+    '電腦共學區及語言學習區','人社分館享時小間'].map(n=>`<option value="${n}">`).join('');
+  const d = new Date();
+  $('r-date').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  try{ const s = JSON.parse(localStorage.getItem(SET_KEY)) || {};
+    if(s.space) $('r-space').value = s.space;
+    if(s.before) $('r-before').value = s.before;
+    if(s.after) $('r-after').value = s.after;
+    if('beforeOn' in s) $('r-before-on').checked = s.beforeOn;
+    if('afterOn' in s) $('r-after-on').checked = s.afterOn;
+  }catch(e){}
+})();
+
+function icsEscape(s){ return String(s).replace(/([\\;,])/g,'\\$1').replace(/\r?\n/g,'\\n'); }
+function icsUTC(d){ return `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`; }
+
+function buildICS({space, start, end, before, after}){
+  const alarm = (trigger, text) => ['BEGIN:VALARM','ACTION:DISPLAY',`DESCRIPTION:${icsEscape(text)}`,`TRIGGER:${trigger}`,'END:VALARM'];
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//nthu-lib//reminder//ZH','CALSCALE:GREGORIAN','METHOD:PUBLISH',
+    'BEGIN:VEVENT',`UID:${Date.now()}-${Math.random().toString(36).slice(2)}@nthu-lib`,`DTSTAMP:${icsUTC(new Date())}`,
+    `DTSTART:${icsUTC(start)}`,`DTEND:${icsUTC(end)}`,`SUMMARY:${icsEscape('圖書館預約：'+space)}`,
+    `LOCATION:${icsEscape('清華大學圖書館')}`,`DESCRIPTION:${icsEscape('記得在時段內刷卡啟用。')}`];
+  if(before) lines.push(...alarm(`-PT${before}M`, `${space} 預約 ${before} 分鐘後開始`));
+  if(after)  lines.push(...alarm(`PT${after}M`,  `${space} 預約已開始 ${after} 分鐘，記得刷卡啟用`));
+  lines.push('END:VEVENT','END:VCALENDAR');
+  return lines.join('\r\n') + '\r\n';
+}
+
+$('remind').addEventListener('submit', async ev=>{
+  ev.preventDefault();
+  const msg = $('r-msg'); msg.classList.remove('err');
+  const space = $('r-space').value.trim();
+  const start = new Date(`${$('r-date').value}T${$('r-start').value}`);
+  let end = new Date(`${$('r-date').value}T${$('r-end').value}`);
+  if(isNaN(start) || isNaN(end)){ msg.textContent='請填好日期與時間。'; msg.classList.add('err'); return; }
+  if(end <= start) end = new Date(end.getTime() + 864e5);   // 跨夜（例如夜讀區）
+  const before = $('r-before-on').checked ? parseInt($('r-before').value,10) : 0;
+  const after  = $('r-after-on').checked  ? parseInt($('r-after').value,10)  : 0;
+  if(($('r-before-on').checked && !(before>0)) || ($('r-after-on').checked && !(after>0))){
+    msg.textContent='提醒的分鐘數請填大於 0 的數字。'; msg.classList.add('err'); return; }
+  if(!before && !after){ msg.textContent='請至少勾選一個提醒。'; msg.classList.add('err'); return; }
+  try{ localStorage.setItem(SET_KEY, JSON.stringify({space, before:$('r-before').value, after:$('r-after').value,
+    beforeOn:$('r-before-on').checked, afterOn:$('r-after-on').checked})); }catch(e){}
+
+  const file = new File([buildICS({space,start,end,before,after})], 'library-booking.ics', {type:'text/calendar'});
+  try{
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'圖書館預約提醒'});
+      msg.textContent='請在跳出的選單選擇「行事曆」完成加入。'; return;
+    }
+  }catch(e){ if(e && e.name==='AbortError'){ msg.textContent='已取消。'; return; } }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+  msg.textContent='已下載行事曆檔，點開它並選擇「行事曆」即可加入。';
+});
 
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 </script>
