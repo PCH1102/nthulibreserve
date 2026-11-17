@@ -1,5 +1,5 @@
 // app 外殼快取 + 接收推播
-const CACHE = 'nthu-lib-v3';
+const CACHE = 'nthu-lib-v4';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -31,10 +31,9 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   let d = { title: '圖書館提醒', body: '' };
   try { if (e.data) d = e.data.json(); } catch (_) { if (e.data) d.body = e.data.text(); }
-  e.waitUntil(self.registration.showNotification(d.title || '圖書館提醒', {
-    body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png',
-    vibrate: [100, 50, 100], tag: d.tag || undefined, renotify: true,
-  }));
+  const opts = { body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', vibrate: [100, 50, 100] };
+  if (d.tag) { opts.tag = d.tag; opts.renotify = true; }   // renotify 一定要搭配 tag，否則通知會被擋
+  e.waitUntil(self.registration.showNotification(d.title || '圖書館提醒', opts));
 });
 
 // 點通知 → 打開 app
