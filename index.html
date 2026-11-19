@@ -132,8 +132,15 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 #alarm .space{font-size:22px; font-weight:600}
 #alarm .time{font-size:56px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1}
 #alarm .left{font-size:17px; opacity:.85}
-#alarm button{margin-top:24px; width:100%; max-width:320px; min-height:58px; border:0; border-radius:18px; font-size:18px; font-weight:700;
+#alarm button{width:100%; max-width:320px; min-height:58px; border:0; border-radius:18px; font-size:18px; font-weight:700;
   background:var(--brand-ink); color:var(--brand)}
+#alarm button:first-of-type{margin-top:20px}
+#alarm button.sec{background:transparent; color:var(--brand-ink); border:2px solid currentColor; min-height:52px; font-size:16px}
+#alarm button[hidden]{display:none}
+/* 首頁：提醒服務狀態 */
+.svc{font-size:13px; line-height:1.5; margin:-4px 4px 0; color:var(--mute)}
+.svc.ok{color:var(--ok)} .svc.warn{color:var(--warn)} .svc.bad{color:var(--full)}
+.chip.ok{color:var(--ok)}
 @keyframes ring{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(4deg)}}
 @media (prefers-reduced-motion:reduce){ #alarm .ring{animation:none} }
 footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; line-height:1.6}
@@ -171,6 +178,7 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
   <div><b id="next-title">讀取中…</b><div class="note" id="next-sub"></div></div>
   <span class="go" aria-hidden="true">›</span>
 </button>
+<div class="svc" id="svc" role="status">提醒服務：檢查中…</div>
 
 <footer>人數資料來自清大圖書館公開資訊，每分鐘自動更新。<br>預約通知由圖書館的預約確認信自動建立。<br>非官方工具，預約仍在圖書館官方系統完成。</footer>
 
@@ -247,7 +255,10 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
     <div class="space" id="al-space"></div>
     <div class="time" id="al-time"></div>
     <div class="left" id="al-left"></div>
-    <button type="button" id="al-ok">知道了</button>
+    <button type="button" id="al-checkin">✅ 我已報到</button>
+    <button type="button" id="al-snooze" class="sec">⏰ 5 分鐘後再提醒</button>
+    <button type="button" id="al-ok" class="sec">知道了</button>
+    <div class="left" id="al-msg"></div>
   </div>
 </dialog>
 
@@ -430,13 +441,14 @@ function remindersOf(b){
     r.kind === 'before' ? { at: s - r.min*60000, label: r.min ? `開始前 ${r.min} 分` : '開始時' } :
     r.kind === 'after'  ? { at: s + r.min*60000, label: `開始後 ${r.min} 分` } :
     { at: new Date(r.at).getTime(), label: `指定 ${fmtDay(new Date(r.at))}` }
-  ).filter(r => !isNaN(r.at)).sort((x,y) => x.at - y.at);
+  ).map((x, i) => ({ ...x, kind: listOf(b)[i].kind }))
+   .filter(r => !isNaN(r.at)).sort((x,y) => x.at - y.at);
 }
 
 function renderAll(){
   const list = active();
   const now = Date.now();
-  const upcoming = list.flatMap(b => remindersOf(b).filter(r => r.at > now).map(r => ({ ...r, b })))
+  const upcoming = list.flatMap(b => remindersOf(b).filter(r => r.at > now && !(b.checkedIn && r.kind !== 'at')).map(r => ({ ...r, b })))
     .sort((x,y) => x.at - y.at);
 
   // 鈴鐺上的數字：還沒響的通知數
@@ -456,14 +468,19 @@ function renderAll(){
   // 總覽清單
   $('list').innerHTML = list.map(b=>{
     const s = new Date(b.start), e = new Date(b.end);
-    const chips = remindersOf(b).map(r =>
-      `<span class="chip${r.at <= now ? ' done' : ''}">${r.label}・${fmtHM(new Date(r.at))}</span>`).join('')
-      || '<span class="chip off">不通知</span>';
+    const nag = listOf(b).some(r => r.kind === 'after');
+    const chips = (remindersOf(b).map(r =>
+      `<span class="chip${r.at <= now || (b.checkedIn && r.kind !== 'at' && r.at > b.checkedIn) ? ' done' : ''}">${r.label}・${fmtHM(new Date(r.at))}</span>`).join('')
+      || '<span class="chip off">不通知</span>')
+      + (b.checkedIn ? `<span class="chip ok">✅ 已報到 ${fmtHM(new Date(b.checkedIn))}</span>`
+         : nag ? '<span class="chip">沒報到每 5 分再響</span>' : '');
+    const canCheck = now >= s.getTime() - 3600e3;   // 開始前一小時起才顯示報到按鈕
     return `<div class="nt">
       <div class="t">${esc(b.space)}</div>
-      <div class="d">${fmtDay(s)} ${fmtHM(s)}–${fmtHM(e)}${b.source==='mail' ? '・來自預約信' : ''}</div>
+      <div class="d">${fmtDay(s)} ${fmtHM(s)}–${e.toDateString() === s.toDateString() ? '' : fmtDay(e) + ' '}${fmtHM(e)}${b.source==='mail' ? '・來自預約信' : ''}</div>
       <div class="chips">${chips}</div>
       <div class="nt-btns">
+        ${canCheck ? `<button class="btn ${b.checkedIn ? 'ghost' : 'primary'} small" type="button" data-check="${esc(b.id)}">${b.checkedIn ? '取消已報到' : '✅ 已報到'}</button>` : ''}
         <button class="btn ghost small" type="button" data-edit="${esc(b.id)}">編輯</button>
         <button class="link-danger" type="button" data-del="${esc(b.id)}">刪除</button>
       </div></div>`;
@@ -502,7 +519,8 @@ function update(id, patch){
 }
 
 $('list').addEventListener('click', e=>{
-  const del = e.target.closest('[data-del]'), edit = e.target.closest('[data-edit]');
+  const del = e.target.closest('[data-del]'), edit = e.target.closest('[data-edit]'), chk = e.target.closest('[data-check]');
+  if(chk){ const b = bookings.find(x => x.id === chk.dataset.check); if(b) update(b.id, { checkedIn: b.checkedIn ? 0 : Date.now() }); }
   if(del){
     const b = bookings.find(x => x.id === del.dataset.del); if(!b) return;
     if(confirm(`刪除「${b.space}」${fmtDay(new Date(b.start))}的通知？\n（只刪通知，不會取消圖書館的預約）`))
@@ -606,7 +624,8 @@ $('token-form').addEventListener('submit', async ev=>{
   ev.preventDefault();
   token = $('token-input').value.trim(); lsSet(TOKEN_KEY, token);
   $('token-box').hidden = true; $('token-input').value = '';
-  await registerPush(); await sync();
+  saveSwConfig();
+  await registerPush(); await sync(); checkService();
 });
 
 // ---- 推播 ----
@@ -641,6 +660,7 @@ async function enablePush(){
     pushSub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:b64ToUint8(key) });
     await registerPush();
     await refreshPushState();
+    checkService();
   }catch(e){ $('push-sub').textContent='開啟失敗：'+(e.message||e); console.error(e); }
   finally{ b.disabled=false; }
 }
@@ -666,18 +686,67 @@ function showAlarm(a){
   if(!a || !a.start) return;
   alarmData = a;
   const s = new Date(a.start);
+  const b = bookings.find(x => x.id === a.bookingId);
   $('al-title').textContent = a.title || '圖書館預約提醒';
   $('al-space').textContent = a.space || '';
   $('al-time').textContent = fmtHM(s);
+  $('al-checkin').hidden = a.kind === 'at';
+  $('al-checkin').textContent = b && b.checkedIn ? '✅ 已經報到了' : '✅ 我已報到';
+  $('al-checkin').disabled = !!(b && b.checkedIn);
+  $('al-msg').textContent = '';
+  [$('al-snooze'), $('al-ok')].forEach(x => x.disabled = false);
   if(!$('alarm').open) $('alarm').showModal();
   alarmTick();
   try{ navigator.vibrate && navigator.vibrate([400,150,400,150,800]); }catch(e){}
 }
+const closeAlarmSoon = msg => { $('al-msg').textContent = msg; setTimeout(()=>$('alarm').close(), 1500); };
 $('al-ok').addEventListener('click', ()=>$('alarm').close());
+$('al-checkin').addEventListener('click', async ()=>{
+  const a = alarmData; if(!a) return;
+  $('al-checkin').disabled = true;
+  if(!a.bookingId) return closeAlarmSoon('（這是測試提醒，不會記錄）');
+  const b = bookings.find(x => x.id === a.bookingId);
+  if(b){ update(b.id, { checkedIn: Date.now() }); return closeAlarmSoon('已記錄報到，之後不會再催你 👍'); }
+  try{ await api('/checkin', { id: a.bookingId }); sync(); closeAlarmSoon('已記錄報到，之後不會再催你 👍'); }
+  catch(e){ $('al-checkin').disabled = false; $('al-msg').textContent = '沒有成功：' + e.message; }
+});
+$('al-snooze').addEventListener('click', async ()=>{
+  const a = alarmData; if(!a) return;
+  $('al-snooze').disabled = true; $('al-msg').textContent = '設定中…';
+  try{ await api('/snooze', { alert: a, minutes: 5 }); closeAlarmSoon('好，5 分鐘後再提醒你'); }
+  catch(e){ $('al-snooze').disabled = false; $('al-msg').textContent = '沒有成功：' + e.message; }
+});
 setInterval(alarmTick, 15000);
 navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', e=>{
   if(e.data && e.data.type === 'alert') showAlarm(e.data.alert);
+  if(e.data && e.data.type === 'refresh') sync();
 });
+
+// ---- 首頁：提醒服務狀態 ----
+// lastCron = cron-job.org 最後一次叫醒後端的時間。超過 3 分鐘沒叫，代表 Render 睡著時提醒會發不出去
+async function checkService(){
+  const el = $('svc');
+  const set = (cls, t) => { el.className = 'svc ' + cls; el.textContent = t; };
+  let h;
+  try{
+    const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 60000);
+    h = await (await fetch(PUSH_API + '/health', { cache:'no-store', signal:ctl.signal })).json();
+    clearTimeout(t);
+  }catch(e){ return set('bad', '⚠️ 連不上提醒服務（Render），提醒可能不會響。等一下再開 app 看看'); }
+  const pushOn = pushSub && 'Notification' in window && Notification.permission === 'granted';
+  const ago = h.lastCron ? Math.round((h.now - h.lastCron) / 60000) : null;
+  if(!pushOn) return set('warn', '⚠️ 這支手機還沒開啟推播，點 🔔 開啟');
+  if(!h.devices) return set('warn', '⚠️ 後端沒有登記這支手機，點 🔔 →「發送測試」確認一下');
+  if(ago === null && h.now - h.startedAt < 3 * 60000) return set('', '提醒服務剛重新啟動，確認中…');
+  if(ago === null || ago > 3) return set('bad', `⚠️ 提醒服務${ago === null ? '一直' : `已經 ${ago} 分鐘`}沒被 cron-job.org 叫醒，請檢查 cron-job.org`);
+  set('ok', `✅ 提醒服務正常・${ago <= 0 ? '剛剛' : `${ago} 分鐘前`}檢查過`);
+}
+setInterval(()=>{ if(!document.hidden) checkService(); }, 120000);
+
+// 通知上的「已報到 / 5 分鐘後」按鈕是在背景執行的，需要知道後端網址和通行碼
+async function saveSwConfig(){
+  try{ await (await caches.open('nthu-lib-config')).put('config', new Response(JSON.stringify({ api: PUSH_API, token }))); }catch(e){}
+}
 // 從通知點進來：網址帶著 ?alert=...
 try{
   const q = new URLSearchParams(location.search).get('alert');
@@ -691,13 +760,14 @@ let lastSync = 0;
 document.addEventListener('visibilitychange', ()=>{
   if(document.hidden) return;
   load();
-  if(Date.now() - lastSync > 30000){ lastSync = Date.now(); sync(); }
+  if(Date.now() - lastSync > 30000){ lastSync = Date.now(); sync(); checkService(); }
 });
+saveSwConfig();
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js')
     .then(()=>refreshPushState()).then(registerPush).catch(()=>{})
-    .then(()=>{ lastSync = Date.now(); return sync(); });
-}else sync();
+    .then(()=>{ lastSync = Date.now(); checkService(); return sync(); });
+}else{ sync(); checkService(); }
 </script>
 </body>
 </html>

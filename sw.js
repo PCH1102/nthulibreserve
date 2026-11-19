@@ -1,5 +1,6 @@
 // app 外殼快取 + 接收推播
-const CACHE = 'nthu-lib-v7';
+const CACHE = 'nthu-lib-v8';
+const CONFIG = 'nthu-lib-config';   // app 存放後端網址和通行碼，讓通知上的按鈕可以直接呼叫後端
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -8,7 +9,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== CONFIG).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -27,6 +28,16 @@ self.addEventListener('fetch', e => {
   );
 });
 
+async function callApi(path, body) {
+  const r = await (await caches.open(CONFIG)).match('config');
+  const { api, token } = r ? await r.json() : {};
+  if (!api) throw new Error('no config');
+  const res = await fetch(api + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Token': token || '' },
+    body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
 // 收到推播 → 顯示通知（預約提醒會一直留在畫面上直到你按掉）
 self.addEventListener('push', e => {
   let d = { title: '圖書館提醒', body: '' };
@@ -37,6 +48,10 @@ self.addEventListener('push', e => {
     opts.data = { alert: d.alert };
     opts.requireInteraction = true;
     opts.vibrate = [400, 150, 400, 150, 400, 150, 800];
+    opts.actions = [
+      ...(d.alert.kind === 'at' ? [] : [{ action: 'checkin', title: '✅ 已報到' }]),
+      { action: 'snooze', title: '⏰ 5 分鐘後再提醒' },
+    ];
   }
   e.waitUntil(Promise.all([
     self.registration.showNotification(d.title || '圖書館提醒', opts),
@@ -46,10 +61,23 @@ self.addEventListener('push', e => {
   ]));
 });
 
-// 點通知 → 打開 app 並顯示全螢幕提醒
+// 點通知 → 打開 app 並顯示全螢幕提醒；點通知上的按鈕 → 直接在背景處理
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const alert = e.notification.data && e.notification.data.alert;
+
+  if (alert && (e.action === 'checkin' || e.action === 'snooze')) {
+    const done = e.action === 'checkin'
+      ? (alert.bookingId ? callApi('/checkin', { id: alert.bookingId }) : Promise.resolve())
+          .then(() => ['✅ 已記錄報到', '之後不會再提醒你報到了'])
+      : callApi('/snooze', { alert, minutes: 5 }).then(() => ['⏰ 好，5 分鐘後再提醒你', alert.space || '']);
+    e.waitUntil(done
+      .catch(() => ['⚠️ 沒有成功', '請打開 app 再按一次'])
+      .then(([title, body]) => self.registration.showNotification(title, { body, icon: 'icon-192.png', badge: 'icon-192.png', tag: 'action-result', silent: true }))
+      .then(() => clients.matchAll({ type: 'window' })).then(list => list.forEach(c => c.postMessage({ type: 'refresh' }))));
+    return;
+  }
+
   const url = alert ? './?alert=' + encodeURIComponent(JSON.stringify(alert)) : './';
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async list => {
     for (const c of list) {

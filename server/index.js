@@ -23,7 +23,10 @@ webpush.setVapidDetails(SUBJECT, PUBLIC, PRIVATE);
 
 // ---- 儲存 ----
 // Render 免費方案重啟會清空檔案；Apps Script 每 5 分鐘會重送預約、webapp 開啟時會重送你的編輯，所以會自己補回來。
-const emptyDb = () => ({ subs: {}, bookings: {}, sent: {}, settings: { before: 10, after: 5, updatedAt: 0 } });
+const emptyDb = () => ({ subs: {}, bookings: {}, sent: {}, snoozes: {}, lastCron: 0, settings: { before: 10, after: 5, updatedAt: 0 } });
+const STARTED_AT = Date.now();
+// 開始後還沒按「已報到」：每 NAG_EVERY 分鐘再響一次，最多到開始後 NAG_MAX 分鐘（或預約結束）
+const NAG_EVERY = 5, NAG_MAX = 30;
 let db = emptyDb();
 try {
   const d = JSON.parse(readFileSync(DATA_FILE, 'utf8'));
@@ -72,6 +75,7 @@ function cleanBooking(b) {
     start: new Date(start).toISOString(),
     end: new Date(end).toISOString(),
     reminders: cleanReminders(b),
+    checkedIn: Number(b.checkedIn) || 0,   // 按「已報到」的時間，0 = 還沒
     deleted: !!b.deleted,
     updatedAt: Number(b.updatedAt) || 0,
   };
@@ -81,20 +85,37 @@ function cleanBooking(b) {
 function remindersOf(b) {
   if (b.deleted) return [];
   const start = Date.parse(b.start);
+  const out = baseReminders(b);
+  // 有「開始後」提醒、又還沒報到：之後每 5 分鐘再催一次
+  const afters = (b.reminders || []).filter(r => r.kind === 'after');
+  if (afters.length) {
+    const first = start + Math.min(...afters.map(r => r.min)) * 60000;
+    const stop = Math.min(Date.parse(b.end), start + NAG_MAX * 60000);
+    for (let t = first + NAG_EVERY * 60000; t <= stop; t += NAG_EVERY * 60000) {
+      out.push({ id: `${b.id}|n|${t}`, fireAt: t, kind: 'nag', title: '⚠️ 還沒報到嗎？',
+        body: `${b.space} 已開始 ${Math.round((t - start) / 60000)} 分鐘。報到了就按「已報到」，就不會再提醒` });
+    }
+  }
+  // 已報到：之後和開始時間有關的提醒都不用響了（指定時間的照響）
+  return b.checkedIn ? out.filter(r => r.kind === 'at' || r.fireAt <= b.checkedIn) : out;
+}
+
+function baseReminders(b) {
+  const start = Date.parse(b.start);
   const when = `${dayTW(start)} ${hmTW(start)}`;
   return (b.reminders || []).map(r => {
     if (r.kind === 'before') {
       const t = start - r.min * 60000;
-      return { id: `${b.id}|b|${t}`, fireAt: t, title: r.min ? '圖書館預約即將開始' : '圖書館預約現在開始',
+      return { id: `${b.id}|b|${t}`, fireAt: t, kind: 'before', title: r.min ? '圖書館預約即將開始' : '圖書館預約現在開始',
         body: r.min ? `${b.space}　${r.min} 分鐘後（${hmTW(start)}）開始` : `${b.space}　${hmTW(start)} 開始，記得刷卡報到` };
     }
     if (r.kind === 'after') {
       const t = start + r.min * 60000;
-      return { id: `${b.id}|a|${t}`, fireAt: t, title: '⚠️ 記得刷卡報到',
+      return { id: `${b.id}|a|${t}`, fireAt: t, kind: 'after', title: '⚠️ 記得刷卡報到',
         body: `${b.space} 已開始 ${r.min} 分鐘，還沒刷卡請立刻去報到` };
     }
     const t = Date.parse(r.at);
-    return { id: `${b.id}|t|${t}`, fireAt: t, title: '圖書館預約提醒', body: `${b.space}　${when} 開始` };
+    return { id: `${b.id}|t|${t}`, fireAt: t, kind: 'at', title: '圖書館預約提醒', body: `${b.space}　${when} 開始` };
   });
 }
 
@@ -150,10 +171,39 @@ const auth = (req, res, next) =>
   (!TOKEN || req.get('X-Token') === TOKEN || req.query.token === TOKEN) ? next() : res.status(401).json({ error: 'bad token' });
 
 app.get('/', (_req, res) => res.type('text').send('nthu-lib push backend OK'));
+// 首頁的「提醒服務狀態」用：lastCron = 外部 cron 最後一次戳 /tick 的時間
 app.get('/health', (_req, res) => res.json({
   ok: true, devices: Object.keys(db.subs).length,
   bookings: visibleBookings().filter(b => !b.deleted).length,
+  now: Date.now(), startedAt: STARTED_AT, lastCron: db.lastCron || 0,
 }));
+
+// 「已報到」：之後的開始後提醒、每 5 分鐘的催促都停掉。on:false 可取消
+app.post('/checkin', auth, (req, res) => {
+  const b = db.bookings[req.body?.id];
+  if (!b || b.deleted) return res.status(404).json({ error: 'no booking' });
+  b.checkedIn = req.body.on === false ? 0 : Date.now();
+  b.updatedAt = Date.now();
+  save();
+  res.json({ ok: true, booking: b });
+});
+
+// 「5 分鐘後再提醒」：一次性的提醒，不會出現在預約的提醒清單裡
+app.post('/snooze', auth, (req, res) => {
+  const a = req.body?.alert;
+  if (!a || typeof a !== 'object') return res.status(400).json({ error: 'no alert' });
+  const min = Math.max(1, Math.min(60, parseInt(req.body.minutes, 10) || 5));
+  const fireAt = Date.now() + min * 60000;
+  const alert = {
+    title: String(a.title || '圖書館預約提醒').slice(0, 80), body: String(a.body || '').slice(0, 200),
+    space: String(a.space || '').slice(0, 60), start: a.start, end: a.end,
+    bookingId: typeof a.bookingId === 'string' ? a.bookingId.slice(0, 120) : '',
+    kind: ['before', 'after', 'nag', 'at'].includes(a.kind) ? a.kind : 'at',   // 保留原本的種類，報到後就不再響
+  };
+  db.snoozes[`snooze|${fireAt}|${Math.random().toString(36).slice(2, 8)}`] = { fireAt, alert };
+  save();
+  res.json({ ok: true, fireAt });
+});
 app.get('/vapid', (_req, res) => res.json({ key: PUBLIC }));
 
 // webapp：讀取所有預約（含已刪除的標記，讓手機端也知道被刪了）
@@ -199,7 +249,7 @@ app.post('/test', auth, async (req, res) => {
     const start = new Date(Date.now() + 10 * 60000).toISOString();
     const end = new Date(Date.now() + 130 * 60000).toISOString();
     await webpush.sendNotification(sub, JSON.stringify({ title: '測試推播', body: '收到這則就代表推播設定成功 🎉 點我看全螢幕提醒',
-      tag: 'test', alert: { title: '測試：圖書館預約即將開始', body: '', space: '享時小間 605（測試）', start, end } }));
+      tag: 'test', alert: { title: '測試：圖書館預約即將開始', body: '', space: '享時小間 605（測試）', start, end, bookingId: '', kind: 'before' } }));
     res.json({ ok: true });
   } catch (e) { res.status(502).json({ error: e.statusCode || e.message }); }
 });
@@ -242,16 +292,32 @@ async function runTick() {
       if (db.sent[r.id] || r.fireAt > now) continue;
       db.sent[r.id] = now;
       if (now - r.fireAt > 15 * 60000) continue;   // 晚超過 15 分鐘就不補發了
-      await pushAll(JSON.stringify({ title: r.title, body: r.body, tag: r.id,
-        alert: { title: r.title, body: r.body, space: b.space, start: b.start, end: b.end } }));
+      // 報到催促用同一個 tag：新的一則會取代舊的，通知欄不會堆滿
+      const tag = r.kind === 'after' || r.kind === 'nag' ? `${b.id}|checkin` : r.id;
+      await pushAll(JSON.stringify({ title: r.title, body: r.body, tag,
+        alert: { title: r.title, body: r.body, space: b.space, start: b.start, end: b.end, bookingId: b.id, kind: r.kind } }));
       sent++;
     }
+  }
+  for (const [id, s] of Object.entries(db.snoozes)) {
+    if (s.fireAt > now) continue;
+    delete db.snoozes[id];
+    const b = db.bookings[s.alert.bookingId];
+    if (b && (b.deleted || (b.checkedIn && s.alert.kind !== 'at'))) continue;   // 已刪除或已報到就算了
+    if (now - s.fireAt > 15 * 60000) continue;
+    const title = s.alert.title.startsWith('⏰') ? s.alert.title : '⏰ ' + s.alert.title;
+    await pushAll(JSON.stringify({ title, body: s.alert.body || s.alert.space, tag: id, alert: { ...s.alert, title } }));
+    sent++;
   }
   prune(); save();
   return sent;
 }
 
-app.all('/tick', auth, async (_req, res) => res.json({ ok: true, sent: await tick() }));
+// 外部 cron（cron-job.org）每分鐘戳這裡；記下時間讓首頁能顯示服務是否正常
+app.all('/tick', auth, async (_req, res) => {
+  db.lastCron = Date.now();
+  res.json({ ok: true, sent: await tick() });
+});
 
 // 保險：伺服器自己也每 60 秒跑一次（沒睡著時有效；睡著時靠外部 cron 戳醒）
 setInterval(() => tick().catch(() => {}), 60000);
