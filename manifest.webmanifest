@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "清大圖書館座位",
-  "short_name": "圖書館座位",
-  "description": "清大圖書館即時在館人數與一鍵預約",
+  "name": "MyNTHU",
+  "short_name": "MyNTHU",
+  "description": "我的清大：圖書館座位與預約提醒、各科待辦事項",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -1,5 +1,5 @@
 // app 外殼快取 + 接收推播
-const CACHE = 'nthu-lib-v8';
+const CACHE = 'nthu-lib-v9';
 const CONFIG = 'nthu-lib-config';   // app 存放後端網址和通行碼，讓通知上的按鈕可以直接呼叫後端
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
@@ -40,7 +40,7 @@ async function callApi(path, body) {
 
 // 收到推播 → 顯示通知（預約提醒會一直留在畫面上直到你按掉）
 self.addEventListener('push', e => {
-  let d = { title: '圖書館提醒', body: '' };
+  let d = { title: 'MyNTHU 提醒', body: '' };
   try { if (e.data) d = e.data.json(); } catch (_) { if (e.data) d.body = e.data.text(); }
   const opts = { body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', vibrate: [100, 50, 100] };
   if (d.tag) { opts.tag = d.tag; opts.renotify = true; }   // renotify 一定要搭配 tag，否則通知會被擋
@@ -49,7 +49,8 @@ self.addEventListener('push', e => {
     opts.requireInteraction = true;
     opts.vibrate = [400, 150, 400, 150, 400, 150, 800];
     opts.actions = [
-      ...(d.alert.kind === 'at' ? [] : [{ action: 'checkin', title: '✅ 已報到' }]),
+      ...(d.alert.kind === 'todo' ? [{ action: 'done', title: '✅ 完成' }]
+        : d.alert.kind === 'at' ? [] : [{ action: 'checkin', title: '✅ 已報到' }]),
       { action: 'snooze', title: '⏰ 5 分鐘後再提醒' },
     ];
   }
@@ -66,10 +67,13 @@ self.addEventListener('notificationclick', e => {
   e.notification.close();
   const alert = e.notification.data && e.notification.data.alert;
 
-  if (alert && (e.action === 'checkin' || e.action === 'snooze')) {
-    const done = e.action === 'checkin'
-      ? (alert.bookingId ? callApi('/checkin', { id: alert.bookingId }) : Promise.resolve())
-          .then(() => ['✅ 已記錄報到', '之後不會再提醒你報到了'])
+  if (alert && ['checkin', 'snooze', 'done'].includes(e.action)) {
+    const done =
+      e.action === 'checkin'
+        ? (alert.bookingId ? callApi('/checkin', { id: alert.bookingId }) : Promise.resolve())
+            .then(() => ['✅ 已記錄報到', '之後不會再提醒你報到了'])
+      : e.action === 'done'
+        ? callApi('/todo-done', { id: alert.todoId }).then(() => ['✅ 已標記完成', alert.space || ''])
       : callApi('/snooze', { alert, minutes: 5 }).then(() => ['⏰ 好，5 分鐘後再提醒你', alert.space || '']);
     e.waitUntil(done
       .catch(() => ['⚠️ 沒有成功', '請打開 app 再按一次'])

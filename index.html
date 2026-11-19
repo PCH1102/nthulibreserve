@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>清大圖書館座位</title>
+<title>MyNTHU</title>
 <meta name="theme-color" content="#5b1a78">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="圖書館座位">
+<meta name="apple-mobile-web-app-title" content="MyNTHU">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -25,13 +25,14 @@ html,body{margin:0}
 body{
   background:var(--bg); color:var(--ink);
   font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
-  padding:calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 24px);
+  padding:calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 92px);
   max-width:520px; margin:0 auto; min-height:100vh;
   -webkit-tap-highlight-color:transparent;
 }
 button{font-family:inherit}
+[hidden]{display:none !important}
 header{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:16px; gap:12px}
-h1{font-size:22px; margin:0; letter-spacing:.02em}
+h1{font-size:24px; margin:0; letter-spacing:.01em}
 .sub{font-size:13px; color:var(--mute); margin-top:4px}
 .hdr-btns{display:flex; gap:8px; align-items:center}
 .pill{
@@ -44,7 +45,6 @@ h1{font-size:22px; margin:0; letter-spacing:.02em}
 #bell svg{width:20px; height:20px}
 .badge{position:absolute; top:-5px; right:-5px; min-width:19px; height:19px; padding:0 5px; border-radius:10px;
   background:var(--full); color:#fff; font-size:11px; font-weight:700; display:grid; place-items:center}
-.badge[hidden]{display:none}
 .card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px 18px; margin-bottom:12px}
 .row{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
 .name{font-size:15px; color:var(--mute)}
@@ -56,7 +56,8 @@ h1{font-size:22px; margin:0; letter-spacing:.02em}
 .tag{font-size:12px; padding:3px 9px; border-radius:99px; background:var(--track); color:var(--mute); white-space:nowrap}
 .tag.ok{color:var(--ok)} .tag.warn{color:var(--warn)} .tag.full{color:var(--full)}
 .err{color:var(--full)}
-h2{font-size:15px; color:var(--mute); font-weight:600; margin:20px 4px 8px}
+h2{font-size:15px; color:var(--mute); font-weight:600; margin:20px 4px 8px; display:flex; align-items:center; justify-content:space-between}
+.link{background:none; border:0; color:var(--brand); font-size:14px; font-weight:600; padding:4px 0; cursor:pointer}
 #spaces{padding:6px 18px}
 .sp{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); font-size:16px}
 .sp:last-child{border-bottom:0}
@@ -73,15 +74,62 @@ h2{font-size:15px; color:var(--mute); font-weight:600; margin:20px 4px 8px}
 .btn:active{opacity:.85}
 .btn[disabled]{opacity:.5}
 
-/* 首頁的「下一則通知」卡片 */
+/* 分頁 */
+.tab-head{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin:4px 4px 12px}
+.tab-head h2{margin:0; font-size:20px; color:var(--ink)}
+.tabbar{position:fixed; left:0; right:0; bottom:0; z-index:5; display:flex; justify-content:center;
+  background:var(--card); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom)}
+.tabbar .in{display:grid; grid-template-columns:repeat(3,1fr); width:100%; max-width:520px}
+.tabbar button{background:none; border:0; color:var(--mute); font-size:12px; padding:8px 0 10px; display:grid; justify-items:center; gap:3px; cursor:pointer}
+.tabbar svg{width:24px; height:24px}
+.tabbar button[aria-current=page]{color:var(--brand); font-weight:700}
+
+/* 首頁 */
+.today{font-size:15px; color:var(--mute); margin:0 4px 4px}
 #next-card{display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; width:100%; text-align:left; font:inherit; color:inherit}
 #next-card b{font-size:15px}
-#next-card .go{color:var(--mute); font-size:20px}
+.go{color:var(--mute); font-size:20px}
+#home-lib{display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; width:100%; text-align:left; font:inherit; color:inherit}
+.svc{font-size:13px; line-height:1.5; margin:-4px 4px 0; color:var(--mute)}
+.svc.ok{color:var(--ok)} .svc.warn{color:var(--warn)} .svc.bad{color:var(--full)}
 
-/* 通知總覽（全螢幕） */
+/* 待辦 */
+.prog{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+.prog b{font-size:15px}
+.prog span{font-size:13px; color:var(--mute); font-variant-numeric:tabular-nums}
+.bar.thin{height:6px; margin-top:8px}
+.cat{padding:14px 16px}
+.cat-head{display:flex; align-items:center; gap:10px}
+.dot{width:12px; height:12px; border-radius:50%; flex:none}
+.cat-title{flex:1; min-width:0}
+.cat-name{font-weight:700; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cat-meta{font-size:12px; color:var(--mute); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px}
+.cat-count{font-size:13px; color:var(--mute); font-variant-numeric:tabular-nums; white-space:nowrap}
+.icon-btn{width:36px; height:36px; border:0; background:none; color:var(--mute); border-radius:10px; font-size:20px; cursor:pointer; flex:none}
+.td{display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--line)}
+.td:last-child{border-bottom:0}
+.td input[type=checkbox]{width:22px; height:22px; margin:1px 0 0; accent-color:var(--brand); flex:none}
+.td .tt{flex:1; min-width:0; background:none; border:0; padding:0; text-align:left; color:inherit; font:inherit; font-size:15px; line-height:1.4; cursor:pointer}
+.td .tt small{display:block; font-size:12px; color:var(--mute); margin-top:2px}
+.td.done .tt{color:var(--mute); text-decoration:line-through}
+.due.soon{color:var(--warn) !important} .due.over{color:var(--full) !important}
+.add-row{display:flex; gap:8px; margin-top:10px}
+.add-row input{flex:1; min-width:0; font:inherit; font-size:15px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:10px; height:40px; padding:0 10px}
+.more{background:none; border:0; color:var(--mute); font-size:13px; padding:8px 0 0; cursor:pointer}
+.empty{font-size:14px; color:var(--mute); padding:6px 0; line-height:1.6}
+.two-btns{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px}
+.home-td{display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--line)}
+.home-td:last-child{border-bottom:0}
+.home-td input{width:22px; height:22px; margin:1px 0 0; accent-color:var(--brand); flex:none}
+.home-td .tt{flex:1; min-width:0; font-size:15px; line-height:1.4}
+.home-td small{display:block; font-size:12px; color:var(--mute); margin-top:2px}
+
+/* 對話框 */
 dialog{border:0; padding:0; color:var(--ink); background:var(--bg)}
 dialog::backdrop{background:rgba(0,0,0,.45)}
-#panel{width:100%; max-width:520px; height:100%; max-height:none; margin:0 auto}
+dialog.full{width:100%; max-width:520px; height:100%; max-height:none; margin:0 auto}
+dialog.pop{width:calc(100% - 32px); max-width:440px; max-height:calc(100% - 32px); border-radius:20px; background:var(--card)}
+dialog.pop .sheet{padding:20px}
 .sheet{padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 24px)}
 .sheet-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px}
 .sheet-head h2{margin:0; font-size:20px; color:var(--ink)}
@@ -96,32 +144,46 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .chip{font-size:12px; padding:3px 9px; border-radius:99px; background:var(--track); color:var(--ink)}
 .chip.off{color:var(--mute)}
 .chip.done{color:var(--mute); text-decoration:line-through}
+.chip.ok{color:var(--ok)}
 .nt-btns{display:flex; gap:8px; margin-top:10px}
 .nt-btns button{flex:1}
-.link-danger{background:none; border:1px solid var(--line); color:var(--full); border-radius:12px; min-height:40px; font-size:14px}
+.link-danger{background:none; border:1px solid var(--line); color:var(--full); border-radius:12px; min-height:40px; font-size:14px; padding:0 14px; cursor:pointer}
 #list:empty::after{content:'目前沒有預約通知。預約成功後收到圖書館的通知信，會自動加進來。'; display:block; color:var(--mute); font-size:14px; padding:6px 0; line-height:1.6}
 
-/* 表單（編輯、預設值、通行碼） */
+/* 表單 */
 .form{display:grid; gap:12px}
 .form label{font-size:14px; color:var(--mute); display:grid; gap:4px}
-.form input:not([type=checkbox]){font:inherit; font-size:16px; color:var(--ink); background:var(--bg);
-  border:1px solid var(--line); border-radius:10px; height:44px; padding:0 10px; width:100%; min-width:0}
+.form input:not([type=checkbox]):not([type=radio]), .form select, .form textarea{font:inherit; font-size:16px; color:var(--ink); background:var(--bg);
+  border:1px solid var(--line); border-radius:10px; min-height:44px; padding:0 10px; width:100%; min-width:0}
+.form textarea{padding:10px; min-height:88px; resize:vertical; line-height:1.5}
 .form .two{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .chk{display:flex; align-items:center; gap:8px; font-size:15px; color:var(--ink)}
 .chk input[type=checkbox]{width:22px; height:22px; accent-color:var(--brand); margin:0}
-.chk input[type=number]{width:72px; text-align:center}
+.chk input[type=number]{width:72px !important; text-align:center}
 .chk input[type=number]:disabled{opacity:.4}
-#editor{width:calc(100% - 32px); max-width:440px; max-height:calc(100% - 32px); border-radius:20px; background:var(--card)}
-#editor .sheet{padding:20px}
-.form select{font:inherit; font-size:15px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:10px; height:44px; padding:0 8px}
 .rm{display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center}
+.rm select{width:auto !important}
 .rm .val{display:flex; align-items:center; gap:6px; min-width:0}
-.rm .val input[type=number]{width:72px; text-align:center}
+.rm .val input[type=number]{width:72px !important; text-align:center}
 .rm .val span{font-size:14px; color:var(--mute)}
 .rm .x{width:40px; height:44px; border:1px solid var(--line); background:none; color:var(--full); border-radius:10px; font-size:18px}
 .rm-when{grid-column:1 / -1; font-size:12px; color:var(--mute); margin-top:-4px}
 #rm-list{display:grid; gap:10px}
 #rm-list:empty::after{content:'沒有提醒（這筆預約不會通知）'; font-size:14px; color:var(--mute)}
+.swatches{display:flex; gap:10px; flex-wrap:wrap}
+.swatches label{display:block}
+.swatches input{position:absolute; opacity:0; pointer-events:none}
+.swatches span{display:block; width:32px; height:32px; border-radius:50%; border:3px solid transparent; cursor:pointer}
+.swatches input:checked + span{border-color:var(--ink)}
+.swatches input:focus-visible + span{outline:2px solid var(--brand); outline-offset:2px}
+.seg{display:grid; grid-template-columns:1fr 1fr; background:var(--track); border-radius:12px; padding:3px; margin-bottom:12px}
+.seg button{border:0; background:none; border-radius:10px; min-height:38px; font-size:14px; color:var(--mute); cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--card); color:var(--ink); font-weight:700}
+.cr{display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line)}
+.cr:last-child{border-bottom:0}
+.cr > div{flex:1; min-width:0}
+.cr b{font-size:15px}
+.cr input[type=checkbox]{width:22px; height:22px; accent-color:var(--brand); flex:none}
 
 /* 全螢幕提醒 */
 #alarm{width:100%; max-width:none; height:100%; max-height:none; margin:0; background:var(--brand); color:var(--brand-ink)}
@@ -136,22 +198,16 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   background:var(--brand-ink); color:var(--brand)}
 #alarm button:first-of-type{margin-top:20px}
 #alarm button.sec{background:transparent; color:var(--brand-ink); border:2px solid currentColor; min-height:52px; font-size:16px}
-#alarm button[hidden]{display:none}
-/* 首頁：提醒服務狀態 */
-.svc{font-size:13px; line-height:1.5; margin:-4px 4px 0; color:var(--mute)}
-.svc.ok{color:var(--ok)} .svc.warn{color:var(--warn)} .svc.bad{color:var(--full)}
-.chip.ok{color:var(--ok)}
 @keyframes ring{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(4deg)}}
-@media (prefers-reduced-motion:reduce){ #alarm .ring{animation:none} }
 footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; line-height:1.6}
-@media (prefers-reduced-motion:reduce){ .bar i{transition:none} }
+@media (prefers-reduced-motion:reduce){ .bar i{transition:none} #alarm .ring{animation:none} }
 </style>
 </head>
 <body>
 <header>
   <div>
-    <h1>清大圖書館座位</h1>
-    <div class="sub" id="updated">讀取中…</div>
+    <h1>MyNTHU</h1>
+    <div class="sub" id="today"></div>
   </div>
   <div class="hdr-btns">
     <button class="pill" id="bell" type="button" aria-label="通知總覽">
@@ -159,34 +215,75 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
         <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
       <span class="badge" id="badge" hidden></span>
     </button>
-    <button class="pill" id="refresh" type="button">重新整理</button>
   </div>
 </header>
 
-<main id="cards"></main>
+<!-- ============ 首頁 ============ -->
+<section class="tab" id="tab-home">
+  <h2 style="margin-top:4px">下一則提醒</h2>
+  <button class="card" id="next-card" type="button">
+    <div><b id="next-title">讀取中…</b><div class="note" id="next-sub"></div></div>
+    <span class="go" aria-hidden="true">›</span>
+  </button>
+  <div class="svc" id="svc" role="status">提醒服務：檢查中…</div>
 
-<h2>目前可預約空間</h2>
-<section class="card" id="spaces"><div class="note">讀取中…</div></section>
+  <h2>待辦 <button class="link" type="button" data-go="todo">全部 ›</button></h2>
+  <section class="card" id="home-todo"></section>
 
-<div class="actions">
-  <a class="btn primary" id="book" href="https://idm.nthu.ust.edu.tw/openid/886UST_NTHU/authorize/?client_id=227897&response_type=code&redirect_uri=https://libsms.lib.nthu.edu.tw/openidcallback.aspx&state=RWD&scope=openid" target="_blank" rel="noopener">登入並預約座位</a>
-  <a class="btn ghost" href="https://libsms.lib.nthu.edu.tw/build/" target="_blank" rel="noopener">開啟預約系統首頁</a>
-</div>
+  <h2>圖書館 <button class="link" type="button" data-go="lib">詳細 ›</button></h2>
+  <button class="card" id="home-lib" type="button" data-go="lib">
+    <div><b id="home-lib-main">讀取中…</b><div class="note" id="home-lib-sub"></div></div>
+    <span class="go" aria-hidden="true">›</span>
+  </button>
+</section>
 
-<h2>預約通知</h2>
-<button class="card" id="next-card" type="button">
-  <div><b id="next-title">讀取中…</b><div class="note" id="next-sub"></div></div>
-  <span class="go" aria-hidden="true">›</span>
-</button>
-<div class="svc" id="svc" role="status">提醒服務：檢查中…</div>
+<!-- ============ 圖書館 ============ -->
+<section class="tab" id="tab-lib" hidden>
+  <div class="tab-head">
+    <div><h2>圖書館</h2><div class="sub" id="updated">讀取中…</div></div>
+    <button class="pill" id="refresh" type="button">重新整理</button>
+  </div>
+  <main id="cards"></main>
 
-<footer>人數資料來自清大圖書館公開資訊，每分鐘自動更新。<br>預約通知由圖書館的預約確認信自動建立。<br>非官方工具，預約仍在圖書館官方系統完成。</footer>
+  <h2>目前可預約空間</h2>
+  <section class="card" id="spaces"><div class="note">讀取中…</div></section>
+
+  <div class="actions">
+    <a class="btn primary" id="book" href="https://idm.nthu.ust.edu.tw/openid/886UST_NTHU/authorize/?client_id=227897&response_type=code&redirect_uri=https://libsms.lib.nthu.edu.tw/openidcallback.aspx&state=RWD&scope=openid" target="_blank" rel="noopener">登入並預約座位</a>
+    <a class="btn ghost" href="https://libsms.lib.nthu.edu.tw/build/" target="_blank" rel="noopener">開啟預約系統首頁</a>
+    <button class="btn ghost" type="button" id="lib-notify">🔔 預約通知與設定</button>
+  </div>
+  <footer>人數資料來自清大圖書館公開資訊，每分鐘自動更新。<br>預約通知由圖書館的預約確認信自動建立。<br>非官方工具，預約仍在圖書館官方系統完成。</footer>
+</section>
+
+<!-- ============ 待辦 ============ -->
+<section class="tab" id="tab-todo" hidden>
+  <div class="tab-head">
+    <div><h2>待辦</h2><div class="sub" id="todo-sum"></div></div>
+  </div>
+  <div id="cats"></div>
+  <div class="two-btns">
+    <button class="btn ghost" type="button" id="add-course">📚 加入這學期的課</button>
+    <button class="btn ghost" type="button" id="add-cat">＋ 新增類別</button>
+  </div>
+</section>
+
+<nav class="tabbar" aria-label="分頁">
+  <div class="in">
+    <button type="button" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>首頁</button>
+    <button type="button" data-tab="lib">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2z"/><path d="M6 21h13v-3"/></svg>圖書館</button>
+    <button type="button" data-tab="todo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 3 3 5-6"/></svg>待辦</button>
+  </div>
+</nav>
 
 <!-- 通知總覽 -->
-<dialog id="panel">
+<dialog id="panel" class="full">
   <div class="sheet">
     <div class="sheet-head">
-      <h2>通知總覽</h2>
+      <h2>通知</h2>
       <button class="pill" id="panel-close" type="button">關閉</button>
     </div>
 
@@ -206,13 +303,18 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
     </section>
 
     <section class="card">
-      <div class="split"><b>我的預約通知</b><span class="note" id="sync-status" style="margin:0"></span></div>
+      <div class="split"><b>圖書館預約通知</b><span class="note" id="sync-status" style="margin:0"></span></div>
       <div id="list"></div>
+    </section>
+
+    <section class="card" id="todo-rem-box" hidden>
+      <b>待辦提醒</b>
+      <div id="todo-rem"></div>
     </section>
 
     <section class="card">
       <form class="form" id="defaults-form">
-        <div><b>自動加入時的預設提醒</b><div class="note">只套用在之後自動加入的預約；已經加入的可以個別編輯。</div></div>
+        <div><b>預約自動加入時的預設提醒</b><div class="note">只套用在之後自動加入的預約；已經加入的可以個別編輯。</div></div>
         <div class="chk"><input id="d-before-on" type="checkbox"><label for="d-before-on">開始前</label>
           <input id="d-before" type="number" min="1" max="720" inputmode="numeric"><span>分鐘</span></div>
         <div class="chk"><input id="d-after-on" type="checkbox"><label for="d-after-on">開始後</label>
@@ -223,10 +325,10 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
   </div>
 </dialog>
 
-<!-- 編輯單筆通知 -->
-<dialog id="editor">
+<!-- 編輯單筆預約通知 -->
+<dialog id="editor" class="pop">
   <form class="sheet form" id="edit-form" method="dialog">
-    <b style="font-size:17px">編輯通知</b>
+    <b style="font-size:17px">編輯預約通知</b>
     <label>空間 <input id="e-space" maxlength="60" required></label>
     <div class="two">
       <label>開始日期 <input id="e-sdate" type="date" required></label>
@@ -247,6 +349,84 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
   </form>
 </dialog>
 
+<!-- 編輯待辦 -->
+<dialog id="todo-dlg" class="pop">
+  <form class="sheet form" id="todo-form" method="dialog">
+    <b style="font-size:17px" id="t-head">編輯待辦</b>
+    <label>內容 <input id="t-title" maxlength="200" required></label>
+    <label>類別 <select id="t-cat"></select></label>
+    <div class="two">
+      <label>截止日期 <input id="t-date" type="date"></label>
+      <label>截止時間 <input id="t-time" type="time"></label>
+    </div>
+    <label>提醒
+      <select id="t-remind">
+        <option value="-1">不提醒</option>
+        <option value="0">截止時</option>
+        <option value="60">截止前 1 小時</option>
+        <option value="180">截止前 3 小時</option>
+        <option value="1440">截止前 1 天</option>
+        <option value="2880">截止前 2 天</option>
+        <option value="10080">截止前 1 週</option>
+      </select>
+    </label>
+    <div class="note" id="t-when" style="margin-top:-6px"></div>
+    <label>備註 <textarea id="t-note" maxlength="1000" placeholder="選填"></textarea></label>
+    <div class="note err" id="t-msg"></div>
+    <div class="two">
+      <button class="link-danger" type="button" id="t-del">刪除</button>
+      <button class="btn primary small" type="submit">儲存</button>
+    </div>
+    <button class="btn ghost small" type="button" id="t-cancel">取消</button>
+  </form>
+</dialog>
+
+<!-- 編輯類別 -->
+<dialog id="cat-dlg" class="pop">
+  <form class="sheet form" id="cat-form" method="dialog">
+    <b style="font-size:17px" id="c-head">新增類別</b>
+    <label>名稱 <input id="c-name" maxlength="40" required placeholder="例如：實驗室、社團、生活"></label>
+    <div class="note" id="c-info" style="margin-top:-6px"></div>
+    <div><div class="note" style="margin:0 0 6px">顏色</div><div class="swatches" id="c-colors"></div></div>
+    <div class="note err" id="c-msg"></div>
+    <div class="two">
+      <button class="link-danger" type="button" id="c-del">刪除類別</button>
+      <button class="btn primary small" type="submit">儲存</button>
+    </div>
+    <button class="btn ghost small" type="button" id="c-cancel">取消</button>
+  </form>
+</dialog>
+
+<!-- 加入這學期的課 -->
+<dialog id="course-dlg" class="full">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>加入這學期的課</h2>
+      <button class="pill" id="cs-close" type="button">完成</button>
+    </div>
+    <div class="seg" role="group" aria-label="加入方式">
+      <button type="button" id="cs-tab-search" aria-pressed="true">搜尋</button>
+      <button type="button" id="cs-tab-paste" aria-pressed="false">貼上選課結果</button>
+    </div>
+    <div class="note" id="cs-msg" style="margin:0 4px 10px"></div>
+    <section id="cs-search">
+      <div class="form"><input id="cs-q" type="search" placeholder="課名、科號或老師，例如：微積分、CS 1010、王小明" autocomplete="off"></div>
+      <section class="card" style="margin-top:12px; padding-top:4px; padding-bottom:4px"><div id="cs-results"><div class="empty">輸入關鍵字開始搜尋</div></div></section>
+    </section>
+    <section id="cs-paste" hidden>
+      <div class="note" style="margin:0 4px 10px">到校務資訊系統的「選課結果」頁面，全選、複製，貼到下面。app 會自動找出裡面的科號。</div>
+      <div class="form">
+        <textarea id="cs-text" placeholder="把選課結果貼在這裡" style="min-height:140px"></textarea>
+        <button class="btn primary small" type="button" id="cs-parse">辨識課程</button>
+      </div>
+      <section class="card" style="margin-top:12px; padding-top:4px; padding-bottom:4px" id="cs-found-box" hidden>
+        <div id="cs-found"></div>
+      </section>
+      <button class="btn primary small" type="button" id="cs-add-all" hidden style="width:100%">加入勾選的課</button>
+    </section>
+  </div>
+</dialog>
+
 <!-- 全螢幕提醒（點通知進來、或 app 開著時收到提醒） -->
 <dialog id="alarm">
   <div class="wrap">
@@ -263,23 +443,51 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
 </dialog>
 
 <script>
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const WEEK = '日一二三四五六';
+const fmtDay = d => `${d.getMonth()+1}/${d.getDate()}（${WEEK[d.getDay()]}）`;
+const fmtHM = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const localDT = d => `${ymd(d)}T${fmtHM(d)}`;
+const hm = t => fmtHM(new Date(t));
+const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const lsGet = (k, d) => { try{ const v = JSON.parse(localStorage.getItem(k)); return v ?? d; }catch(e){ return d; } };
+const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+
+// =====================================================================
+// 分頁
+// =====================================================================
+const TAB_KEY = 'mynthu-tab';
+function showTab(name){
+  if(!['home','lib','todo'].includes(name)) name = 'home';
+  document.querySelectorAll('.tab').forEach(s => s.hidden = s.id !== 'tab-' + name);
+  document.querySelectorAll('.tabbar button').forEach(b => { if(b.dataset.tab === name) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
+  lsSet(TAB_KEY, name);
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('.tabbar button').forEach(b => b.addEventListener('click', ()=>showTab(b.dataset.tab)));
+document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if(g) showTab(g.dataset.go); });
+showTab(lsGet(TAB_KEY, 'home'));
+function renderToday(){ const d = new Date(); $('today').textContent = `${d.getMonth()+1} 月 ${d.getDate()} 日 星期${WEEK[d.getDay()]}`; }
+renderToday();
+
+// =====================================================================
+// 圖書館：在館人數與可預約空間
+// =====================================================================
 const SOURCES = [
-  { id:'main',  name:'總館在館人數', cap:1365,
+  { id:'main',  name:'總館在館人數', short:'總館', cap:1365,
     url:'https://libsms.lib.nthu.edu.tw/api/user/M_LibUser/stay', pick:async r=>(await r.json()).count },
-  { id:'night', name:'夜讀區', cap:200,
+  { id:'night', name:'夜讀區', short:'夜讀區', cap:200,
     url:'https://libsms.lib.nthu.edu.tw/API/Nthu24kIn.aspx', pick:async r=>parseInt((await r.text()).trim(),10) },
-  { id:'hs',    name:'人社分館在館人數', cap:null,
+  { id:'hs',    name:'人社分館在館人數', short:'人社分館', cap:null,
     url:'https://libsms.lib.nthu.edu.tw/api/user/libuser/stay', pick:async r=>(await r.json()).count },
 ];
-
-const cards = document.getElementById('cards');
-const updated = document.getElementById('updated');
-const btn = document.getElementById('refresh');
-
-function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const cards = $('cards'), updated = $('updated'), btn = $('refresh');
 
 function render(s, v, failed){
-  let el = document.getElementById('c-'+s.id);
+  let el = $('c-'+s.id);
   if(!el){ el = document.createElement('section'); el.className='card'; el.id='c-'+s.id; cards.appendChild(el); }
   if(failed){
     el.innerHTML = `<div class="row"><span class="name">${esc(s.name)}</span><span class="tag err">讀取失敗</span></div>
@@ -303,7 +511,7 @@ function render(s, v, failed){
     <div class="num">${used}${cap ? ` <small>/ ${cap}</small>` : ' <small>人</small>'}</div>${bar}${note}`;
 }
 
-const spacesEl = document.getElementById('spaces');
+const spacesEl = $('spaces');
 async function loadSpaces(){
   try{
     const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 8000);
@@ -332,7 +540,15 @@ function renderSpaces(rows){
 const LAST_KEY = 'nthu-lib-last';
 let state = { t:0, vals:{}, spaces:null };
 try{ const s = JSON.parse(localStorage.getItem(LAST_KEY)); if(s && s.vals) state = s; }catch(e){}
-const hm = t => new Date(t).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false});
+
+// 首頁的圖書館小卡
+function renderHomeLib(){
+  const parts = SOURCES.filter(s => Number.isFinite(state.vals[s.id]))
+    .map(s => `${s.short} ${state.vals[s.id]}${s.cap ? `/${s.cap}` : ' 人'}`);
+  $('home-lib-main').textContent = parts.length ? parts.slice(0, 2).join('・') : '在館人數讀取中…';
+  const free = (state.spaces || []).filter(([, n]) => n !== '0').map(([name, n]) => `${name} ${n}`);
+  $('home-lib-sub').textContent = state.spaces ? (free.length ? `可預約：${free.slice(0, 3).join('、')}` : '目前沒有可預約的空間') : '';
+}
 
 let loading = false;
 async function load(){
@@ -363,6 +579,7 @@ async function load(){
   else if(state.t) updated.textContent = `圖書館伺服器回應慢，部分仍是 ${hm(state.t)} 的資料`;
   else updated.textContent = ok ? '部分資料讀取失敗，可按重新整理再試' : '無法連線，請檢查網路後再試';
   updated.classList.toggle('err', !!failed);
+  renderHomeLib();
   loading = false; btn.disabled = false;
 }
 
@@ -371,101 +588,203 @@ SOURCES.forEach(s=>{ const el=document.createElement('section'); el.className='c
   el.innerHTML=`<div class="row"><span class="name">${esc(s.name)}</span></div><div class="num">–</div>`; cards.appendChild(el);
   if(s.id in state.vals) render(s, state.vals[s.id]); });
 if(state.spaces) renderSpaces(state.spaces);
-
+renderHomeLib();
 btn.addEventListener('click', load);
 setInterval(()=>{ if(!document.hidden) load(); }, 60000);
 load();
 
 // =====================================================================
-// 預約通知：預約由「圖書館預約確認信 → Apps Script → 後端」自動加入，
-// 這裡只負責查看、編輯、刪除，以及推播開關。
+// 資料：圖書館預約通知、待辦類別、待辦事項（存在手機，並和後端同步）
 // =====================================================================
-const $ = id => document.getElementById(id);
-const pad = n => String(n).padStart(2,'0');
 let PUSH_API = 'https://nthu-lib-push.onrender.com';   // 你的 Render 後端（結尾不要加斜線）
 try{ PUSH_API = localStorage.getItem('nthu-lib-api') || PUSH_API; }catch(e){}   // 本機測試時可覆寫
 
-const TOKEN_KEY = 'nthu-lib-token', CACHE_KEY = 'nthu-lib-notify', OLD_KEYS = ['nthu-lib-bookings','nthu-lib-remind','nthu-lib-official','nthu-lib-booking-at'];
-const lsGet = (k, d) => { try{ const v = JSON.parse(localStorage.getItem(k)); return v ?? d; }catch(e){ return d; } };
-const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
-try{ OLD_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}   // 清掉舊版手動提醒的資料
+const TOKEN_KEY = 'nthu-lib-token', CACHE_KEY = 'nthu-lib-notify';
+try{ ['nthu-lib-bookings','nthu-lib-remind','nthu-lib-official','nthu-lib-booking-at'].forEach(k=>localStorage.removeItem(k)); }catch(e){}
 
 let token = lsGet(TOKEN_KEY, '');
-let { bookings = [], settings = { before:10, after:5, updatedAt:0 }, syncedAt = 0 } = lsGet(CACHE_KEY, {});
-const saveCache = () => lsSet(CACHE_KEY, { bookings, settings, syncedAt });
+let { bookings = [], settings = { before:10, after:5, updatedAt:0 }, cats = [], todos = [], syncedAt = 0 } = lsGet(CACHE_KEY, {});
+const saveCache = () => lsSet(CACHE_KEY, { bookings, settings, cats, todos, syncedAt });
 
-// ---- 和後端溝通 ----
 async function api(path, body){
   const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 60000);   // Render 睡著時要等它醒
   try{
     const r = await fetch(PUSH_API + path, { method: body ? 'POST' : 'GET', signal: ctl.signal,
       headers: { ...(body ? {'Content-Type':'application/json'} : {}), 'X-Token': token || '' },
       body: body ? JSON.stringify(body) : undefined });
-    if(r.status === 401){ $('token-box').hidden = false; throw new Error('需要通行碼'); }
-    if(!r.ok) throw new Error(`後端回應 ${r.status}`);
+    if(r.status === 401){ $('token-box').hidden = false; throw new Error('需要通行碼（點右上角 🔔 輸入）'); }
+    if(!r.ok){ let m = `後端回應 ${r.status}`; try{ m = (await r.json()).error || m; }catch(e){} throw new Error(m); }
     return await r.json();
   }finally{ clearTimeout(t); }
 }
 
-// 把這支手機上的編輯送出，同時拿回後端最新的完整清單（Apps Script 新加的也會一起回來）
-let syncing = null;
+// 兩邊都有的就留 updatedAt 比較新的（同步途中又改了東西也不會被蓋掉）
+function mergeLW(local, remote){
+  const m = new Map((remote || []).map(x => [x.id, x]));
+  for(const l of local){ const r = m.get(l.id); if(!r || (l.updatedAt||0) > (r.updatedAt||0)) m.set(l.id, l); }
+  return [...m.values()];
+}
+
+let syncing = null, syncAgain = false;
 function sync(){
-  if(!syncing) syncing = (async ()=>{
+  if(syncing){ syncAgain = true; return syncing; }
+  syncing = (async ()=>{
     $('sync-status').textContent = '同步中…'; $('sync-status').classList.remove('err');
     try{
-      const res = await api('/bookings', { bookings, settings });
-      bookings = res.bookings || []; settings = res.settings || settings; syncedAt = Date.now();
+      bookings = bookings.filter(b => new Date(b.end).getTime() > Date.now() - 12 * 3600e3);
+      const res = await api('/sync', { bookings, settings, cats, todos });
+      bookings = mergeLW(bookings, res.bookings).filter(b => new Date(b.end).getTime() > Date.now() - 12 * 3600e3);
+      cats = mergeLW(cats, res.cats); todos = mergeLW(todos, res.todos);
+      if(res.settings && res.settings.updatedAt >= settings.updatedAt) settings = res.settings;
+      syncedAt = Date.now();
       saveCache(); renderAll();
       $('sync-status').textContent = `已同步 ${hm(syncedAt)}`;
     }catch(e){
       $('sync-status').textContent = e.name==='AbortError' ? '後端沒有回應' : (e.message || '同步失敗');
       $('sync-status').classList.add('err');
-    }finally{ syncing = null; }
+    }finally{
+      syncing = null;
+      if(syncAgain){ syncAgain = false; sync(); }
+    }
   })();
   return syncing;
 }
 
-// ---- 顯示 ----
-const WEEK = '日一二三四五六';
-const fmtDay = d => `${d.getMonth()+1}/${d.getDate()}（${WEEK[d.getDay()]}）`;
-const fmtHM = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-const active = () => bookings.filter(b => !b.deleted && new Date(b.end).getTime() > Date.now())
-  .sort((a,b) => new Date(a.start) - new Date(b.start));
+// 改了東西：先存手機、立刻更新畫面，再在背景同步
+let syncTimer = null;
+function changed(){ saveCache(); renderAll(); clearTimeout(syncTimer); syncTimer = setTimeout(sync, 600); }
 
-// 提醒清單：{kind:'before',min} / {kind:'after',min} / {kind:'at',at}（舊格式 before/after 數字也看得懂）
+// =====================================================================
+// 提醒計算（和後端同一套規則，用來顯示）
+// =====================================================================
 const listOf = b => Array.isArray(b.reminders) ? b.reminders : [
   ...(b.before ? [{ kind:'before', min:b.before }] : []), ...(b.after ? [{ kind:'after', min:b.after }] : [])];
 function remindersOf(b){
   const s = new Date(b.start).getTime();
   return listOf(b).map(r =>
-    r.kind === 'before' ? { at: s - r.min*60000, label: r.min ? `開始前 ${r.min} 分` : '開始時' } :
-    r.kind === 'after'  ? { at: s + r.min*60000, label: `開始後 ${r.min} 分` } :
-    { at: new Date(r.at).getTime(), label: `指定 ${fmtDay(new Date(r.at))}` }
-  ).map((x, i) => ({ ...x, kind: listOf(b)[i].kind }))
-   .filter(r => !isNaN(r.at)).sort((x,y) => x.at - y.at);
+    r.kind === 'before' ? { at: s - r.min*60000, label: r.min ? `開始前 ${r.min} 分` : '開始時', kind:r.kind } :
+    r.kind === 'after'  ? { at: s + r.min*60000, label: `開始後 ${r.min} 分`, kind:r.kind } :
+    { at: new Date(r.at).getTime(), label: `指定 ${fmtDay(new Date(r.at))}`, kind:'at' }
+  ).filter(r => !isNaN(r.at)).sort((x,y) => x.at - y.at);
+}
+const activeBookings = () => bookings.filter(b => !b.deleted && new Date(b.end).getTime() > Date.now())
+  .sort((a,b) => new Date(a.start) - new Date(b.start));
+
+const liveCats = () => cats.filter(c => !c.deleted)
+  .sort((a,b) => (a.kind === b.kind ? 0 : a.kind === 'course' ? -1 : 1) || (a.order||0) - (b.order||0));
+const catOf = id => cats.find(c => c.id === id && !c.deleted);
+const liveTodos = () => todos.filter(t => !t.deleted && catOf(t.catId));
+const todoFireAt = t => t.due && t.remind >= 0 ? new Date(t.due).getTime() - t.remind * 60000 : null;
+
+function upcomingAll(){
+  const now = Date.now();
+  const lib = activeBookings().flatMap(b => remindersOf(b)
+    .filter(r => r.at > now && !(b.checkedIn && r.kind !== 'at'))
+    .map(r => ({ at: r.at, what: b.space, label: r.label })));
+  const td = liveTodos().filter(t => !t.done).map(t => ({ t, at: todoFireAt(t) })).filter(x => x.at && x.at > now)
+    .map(({ t, at }) => ({ at, what: `${catOf(t.catId).name}・${t.title}`, label: '待辦' }));
+  return [...lib, ...td].sort((x,y) => x.at - y.at);
 }
 
+// =====================================================================
+// 畫面
+// =====================================================================
+const COLORS = ['#7c4dff','#1f9d6b','#d98a14','#d0453c','#2f80ed','#c2185b','#00897b','#8d6e63'];
+function dueText(t){
+  if(!t.due) return '';
+  const d = new Date(t.due), now = new Date();
+  const days = Math.round((new Date(ymd(d)) - new Date(ymd(now))) / 864e5);
+  const word = days === 0 ? '今天' : days === 1 ? '明天' : days === -1 ? '昨天' : fmtDay(d);
+  return `${word} ${fmtHM(d)} 截止`;
+}
+function dueCls(t){
+  if(!t.due || t.done) return '';
+  const left = new Date(t.due).getTime() - Date.now();
+  return left < 0 ? 'over' : left < 864e5 ? 'soon' : '';
+}
+const byDue = (a, b) => (a.due ? new Date(a.due).getTime() : Infinity) - (b.due ? new Date(b.due).getTime() : Infinity)
+  || (a.createdAt||0) - (b.createdAt||0);
+
 function renderAll(){
-  const list = active();
+  renderToday();
   const now = Date.now();
-  const upcoming = list.flatMap(b => remindersOf(b).filter(r => r.at > now && !(b.checkedIn && r.kind !== 'at')).map(r => ({ ...r, b })))
-    .sort((x,y) => x.at - y.at);
+  const up = upcomingAll();
 
-  // 鈴鐺上的數字：還沒響的通知數
-  $('badge').hidden = !upcoming.length;
-  $('badge').textContent = upcoming.length > 9 ? '9+' : upcoming.length;
+  // 鈴鐺：還沒響的提醒數
+  $('badge').hidden = !up.length;
+  $('badge').textContent = up.length > 9 ? '9+' : up.length;
 
-  // 首頁卡片：下一則通知
-  if(upcoming.length){
-    const n = upcoming[0], at = new Date(n.at);
-    $('next-title').textContent = `下一則：${fmtDay(at)} ${fmtHM(at)}`;
-    $('next-sub').textContent = `${n.b.space}・${n.label}　共 ${upcoming.length} 則待通知`;
+  // 首頁：下一則提醒
+  if(up.length){
+    const n = up[0], at = new Date(n.at);
+    $('next-title').textContent = `${fmtDay(at)} ${fmtHM(at)}・${n.what}`;
+    $('next-sub').textContent = `${n.label}　共 ${up.length} 則待提醒`;
   }else{
-    $('next-title').textContent = '目前沒有待發的通知';
-    $('next-sub').textContent = '預約成功後收到圖書館通知信，會自動加進來。';
+    $('next-title').textContent = '目前沒有待發的提醒';
+    $('next-sub').textContent = '圖書館預約會自動加入；待辦設了截止時間也會提醒。';
   }
 
-  // 總覽清單
+  renderHomeTodo();
+  renderTodoTab();
+  renderPanel(now);
+}
+
+function renderHomeTodo(){
+  const all = liveTodos(), done = all.filter(t => t.done).length;
+  const open = all.filter(t => !t.done).sort(byDue).slice(0, 5);
+  const pct = all.length ? Math.round(done / all.length * 100) : 0;
+  $('home-todo').innerHTML = !all.length
+    ? '<div class="empty">還沒有待辦。到「待辦」分頁加入這學期的課，或新增自己的類別。</div>'
+    : `<div class="prog"><b>${open.length ? `還有 ${all.length - done} 項沒完成` : '全部完成了 🎉'}</b><span>${done}/${all.length}・${pct}%</span></div>
+       <div class="bar thin"><i style="width:${pct}%"></i></div>
+       <div style="margin-top:6px">${open.map(t => `<label class="home-td">
+         <input type="checkbox" data-done="${esc(t.id)}">
+         <span class="tt">${esc(t.title)}<small class="${dueCls(t) ? 'due ' + dueCls(t) : ''}">${esc(catOf(t.catId).name)}${t.due ? '・' + dueText(t) : ''}</small></span>
+       </label>`).join('')}</div>`;
+}
+
+const showDone = new Set();   // 哪些類別展開了「已完成」
+function renderTodoTab(){
+  const all = liveTodos(), done = all.filter(t => t.done).length;
+  $('todo-sum').textContent = all.length ? `完成 ${done}/${all.length}（${Math.round(done / all.length * 100)}%）` : '';
+  const list = liveCats();
+  const focused = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.addTo;
+  const drafts = {}; document.querySelectorAll('[data-add-to]').forEach(i => { if(i.value) drafts[i.dataset.addTo] = i.value; });
+  $('cats').innerHTML = !list.length
+    ? '<section class="card"><div class="empty">還沒有類別。按下面「📚 加入這學期的課」把課程加進來，或「＋ 新增類別」建立像「實驗室」這樣的類別。</div></section>'
+    : list.map(c => {
+      const ts = all.filter(t => t.catId === c.id);
+      const open = ts.filter(t => !t.done).sort(byDue), fin = ts.filter(t => t.done).sort((a,b) => (b.doneAt||0) - (a.doneAt||0));
+      const pct = ts.length ? Math.round(fin.length / ts.length * 100) : 0;
+      const meta = c.kind === 'course' ? [c.code, c.teacher, c.schedule].filter(Boolean).join('・') : '';
+      const item = t => `<div class="td${t.done ? ' done' : ''}">
+          <input type="checkbox" data-done="${esc(t.id)}" ${t.done ? 'checked' : ''} aria-label="完成：${esc(t.title)}">
+          <button class="tt" type="button" data-todo="${esc(t.id)}">${esc(t.title)}${t.due || t.note ? `<small class="${dueCls(t) ? 'due ' + dueCls(t) : ''}">${[t.due ? dueText(t) : '', t.note ? '📝 ' + esc(t.note.split('\n')[0]).slice(0, 40) : ''].filter(Boolean).join('　')}</small>` : ''}</button>
+        </div>`;
+      return `<section class="card cat">
+        <div class="cat-head">
+          <span class="dot" style="background:${COLORS[c.color] || COLORS[0]}"></span>
+          <div class="cat-title"><div class="cat-name">${esc(c.name)}</div>${meta ? `<div class="cat-meta">${esc(meta)}</div>` : ''}</div>
+          <span class="cat-count">${fin.length}/${ts.length}</span>
+          <button class="icon-btn" type="button" data-cat="${esc(c.id)}" aria-label="編輯類別 ${esc(c.name)}">⋯</button>
+        </div>
+        ${ts.length ? `<div class="bar thin"><i style="width:${pct}%;background:${COLORS[c.color] || COLORS[0]}"></i></div>` : ''}
+        <div style="margin-top:4px">${open.map(item).join('')}</div>
+        ${fin.length ? `<button class="more" type="button" data-toggle-done="${esc(c.id)}">${showDone.has(c.id) ? '收起已完成 ▴' : `已完成 ${fin.length} 項 ▾`}</button>
+          ${showDone.has(c.id) ? `<div>${fin.map(item).join('')}</div>` : ''}` : ''}
+        <form class="add-row" data-add-form="${esc(c.id)}">
+          <input data-add-to="${esc(c.id)}" maxlength="200" placeholder="＋ 新增待辦" enterkeyhint="done" aria-label="在 ${esc(c.name)} 新增待辦">
+          <button class="btn ghost small" type="submit">加入</button>
+        </form>
+      </section>`;
+    }).join('');
+  // 重畫時保留正在輸入的文字和游標
+  document.querySelectorAll('[data-add-to]').forEach(i => { if(drafts[i.dataset.addTo]) i.value = drafts[i.dataset.addTo]; });
+  if(focused){ const i = document.querySelector(`[data-add-to="${CSS.escape(focused)}"]`); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+}
+
+function renderPanel(now){
+  const list = activeBookings();
   $('list').innerHTML = list.map(b=>{
     const s = new Date(b.start), e = new Date(b.end);
     const nag = listOf(b).some(r => r.kind === 'after');
@@ -486,14 +805,23 @@ function renderAll(){
       </div></div>`;
   }).join('');
 
-  // 預設值表單（正在編輯時不要蓋掉）
+  const tr = liveTodos().filter(t => !t.done && todoFireAt(t) && todoFireAt(t) > now).sort((a,b) => todoFireAt(a) - todoFireAt(b));
+  $('todo-rem-box').hidden = !tr.length;
+  $('todo-rem').innerHTML = tr.map(t => { const at = new Date(todoFireAt(t)); return `<div class="nt">
+    <div class="t">${esc(t.title)}</div>
+    <div class="d">${esc(catOf(t.catId).name)}・${dueText(t)}</div>
+    <div class="chips"><span class="chip">${fmtDay(at)} ${fmtHM(at)} 提醒</span></div>
+    <div class="nt-btns"><button class="btn ghost small" type="button" data-todo="${esc(t.id)}">編輯</button></div></div>`; }).join('');
+
   if(!$('defaults-form').contains(document.activeElement)){
     fillToggle('d-before', settings.before, 10);
     fillToggle('d-after', settings.after, 5);
   }
 }
 
-// 「開始前 / 開始後」：勾選框 + 分鐘數。0 代表不通知
+// =====================================================================
+// 圖書館預約通知：總覽、編輯、刪除、報到
+// =====================================================================
 function fillToggle(prefix, val, fallback){
   $(prefix+'-on').checked = val > 0;
   $(prefix).value = val > 0 ? val : fallback;
@@ -504,18 +832,17 @@ function readToggle(prefix){
   const v = parseInt($(prefix).value, 10);
   return v > 0 && v <= 720 ? v : NaN;
 }
-['d-before','d-after'].forEach(p =>
-  $(p+'-on').addEventListener('change', ()=>{ $(p).disabled = !$(p+'-on').checked; }));
+['d-before','d-after'].forEach(p => $(p+'-on').addEventListener('change', ()=>{ $(p).disabled = !$(p+'-on').checked; }));
 
-// ---- 總覽面板 ----
 function openPanel(){ renderAll(); if(!$('panel').open) $('panel').showModal(); sync(); }
 $('bell').addEventListener('click', openPanel);
 $('next-card').addEventListener('click', openPanel);
+$('lib-notify').addEventListener('click', openPanel);
 $('panel-close').addEventListener('click', ()=>$('panel').close());
 
 function update(id, patch){
   bookings = bookings.map(b => b.id === id ? { ...b, ...patch, updatedAt: Date.now() } : b);
-  saveCache(); renderAll(); sync();
+  changed();
 }
 
 $('list').addEventListener('click', e=>{
@@ -529,11 +856,7 @@ $('list').addEventListener('click', e=>{
   if(edit) openEditor(edit.dataset.edit);
 });
 
-// ---- 編輯單筆 ----
 let editingId = null;
-const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-const localDT = d => `${ymd(d)}T${fmtHM(d)}`;   // datetime-local 的格式
-
 // 一列提醒：[種類] [分鐘數 或 日期時間] [✕]，下面小字顯示實際會響的時間
 function rmRow(r){
   const row = document.createElement('div'); row.className = 'rm';
@@ -580,7 +903,6 @@ $('rm-add').addEventListener('click', ()=>{
   if($('rm-list').children.length >= 10) return;
   $('rm-list').appendChild(rmRow({ kind:'before', min:10 })); rmPreview();
 });
-
 function openEditor(id){
   const b = bookings.find(x => x.id === id); if(!b) return;
   editingId = id;
@@ -609,7 +931,6 @@ $('edit-form').addEventListener('submit', ev=>{
   $('editor').close();
 });
 
-// ---- 預設值 ----
 $('defaults-form').addEventListener('submit', ev=>{
   ev.preventDefault();
   const before = readToggle('d-before'), after = readToggle('d-after');
@@ -619,7 +940,210 @@ $('defaults-form').addEventListener('submit', ev=>{
   document.activeElement.blur();
 });
 
-// ---- 通行碼 ----
+// =====================================================================
+// 待辦
+// =====================================================================
+function setTodo(id, patch){
+  todos = todos.map(t => t.id === id ? { ...t, ...patch, updatedAt: Date.now() } : t);
+  changed();
+}
+function setCat(id, patch){
+  cats = cats.map(c => c.id === id ? { ...c, ...patch, updatedAt: Date.now() } : c);
+  changed();
+}
+function addTodo(catId, title){
+  const now = Date.now();
+  todos.push({ id: newId('t'), catId, title, note:'', due:null, remind:-1, done:false, doneAt:0, createdAt: now, deleted:false, updatedAt: now });
+  changed();
+}
+
+// 勾選完成（首頁和待辦分頁都可以）
+document.addEventListener('change', e => {
+  const cb = e.target.closest('[data-done]'); if(!cb) return;
+  setTodo(cb.dataset.done, { done: cb.checked, doneAt: cb.checked ? Date.now() : 0 });
+});
+document.addEventListener('submit', e => {
+  const f = e.target.closest('[data-add-form]'); if(!f) return;
+  e.preventDefault();
+  const input = f.querySelector('input'), title = input.value.trim();
+  if(!title) return;
+  input.value = '';
+  addTodo(f.dataset.addForm, title);
+  const again = document.querySelector(`[data-add-to="${CSS.escape(f.dataset.addForm)}"]`); if(again) again.focus();
+});
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-todo]'), c = e.target.closest('[data-cat]'), tg = e.target.closest('[data-toggle-done]');
+  if(t) openTodo(t.dataset.todo);
+  if(c) openCat(c.dataset.cat);
+  if(tg){ const id = tg.dataset.toggleDone; showDone.has(id) ? showDone.delete(id) : showDone.add(id); renderTodoTab(); }
+});
+
+// ---- 編輯待辦 ----
+let todoId = null;
+function todoPreview(){
+  const d = $('t-date').value, r = parseInt($('t-remind').value, 10);
+  if(!d){ $('t-when').textContent = r >= 0 ? '要先設定截止日期才會提醒' : ''; return; }
+  const due = new Date(`${d}T${$('t-time').value || '23:59'}`);
+  if(r < 0 || isNaN(due)){ $('t-when').textContent = ''; return; }
+  const at = new Date(due.getTime() - r * 60000);
+  $('t-when').textContent = `→ ${fmtDay(at)} ${fmtHM(at)} 提醒${at < new Date() ? '（已經過了，不會響）' : ''}`;
+}
+$('todo-form').addEventListener('input', todoPreview);
+$('t-date').addEventListener('change', ()=>{
+  if($('t-date').value && !$('t-time').value) $('t-time').value = '23:59';
+  if($('t-date').value && $('t-remind').value === '-1') $('t-remind').value = '1440';
+  todoPreview();
+});
+function openTodo(id){
+  const t = todos.find(x => x.id === id); if(!t) return;
+  todoId = id;
+  $('t-cat').innerHTML = liveCats().map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+  $('t-title').value = t.title; $('t-cat').value = t.catId; $('t-note').value = t.note || '';
+  const d = t.due ? new Date(t.due) : null;
+  $('t-date').value = d ? ymd(d) : ''; $('t-time').value = d ? fmtHM(d) : '';
+  $('t-remind').value = String([-1,0,60,180,1440,2880,10080].includes(t.remind) ? t.remind : -1);
+  $('t-msg').textContent = '';
+  todoPreview();
+  if($('panel').open) $('panel').close();
+  $('todo-dlg').showModal();
+}
+$('t-cancel').addEventListener('click', ()=>$('todo-dlg').close());
+$('t-del').addEventListener('click', ()=>{
+  const t = todos.find(x => x.id === todoId); if(!t) return;
+  if(confirm(`刪除待辦「${t.title}」？`)){ setTodo(t.id, { deleted:true }); $('todo-dlg').close(); }
+});
+$('todo-form').addEventListener('submit', ev=>{
+  ev.preventDefault();
+  const title = $('t-title').value.trim();
+  if(!title){ $('t-msg').textContent = '請填內容。'; return; }
+  let due = null;
+  if($('t-date').value){
+    const d = new Date(`${$('t-date').value}T${$('t-time').value || '23:59'}`);
+    if(isNaN(d)){ $('t-msg').textContent = '截止日期時間不正確。'; return; }
+    due = d.toISOString();
+  }
+  setTodo(todoId, { title, catId: $('t-cat').value, due, remind: due ? parseInt($('t-remind').value, 10) : -1, note: $('t-note').value.trim() });
+  $('todo-dlg').close();
+});
+
+// ---- 類別 ----
+let catId = null;
+$('c-colors').innerHTML = COLORS.map((c, i) =>
+  `<label><input type="radio" name="c-color" value="${i}" aria-label="顏色 ${i + 1}"><span style="background:${c}"></span></label>`).join('');
+const nextColor = () => { const used = liveCats().map(c => c.color); return [...COLORS.keys()].find(i => !used.includes(i)) ?? liveCats().length % COLORS.length; };
+function openCat(id){
+  const c = id ? cats.find(x => x.id === id) : null;
+  catId = c ? c.id : null;
+  $('c-head').textContent = c ? '編輯類別' : '新增類別';
+  $('c-name').value = c ? c.name : '';
+  $('c-info').textContent = c && c.kind === 'course' ? [c.code, c.teacher, c.schedule].filter(Boolean).join('・') : '';
+  const color = c ? c.color : nextColor();
+  document.querySelectorAll('[name=c-color]').forEach(r => r.checked = +r.value === color);
+  $('c-del').hidden = !c;
+  $('c-msg').textContent = '';
+  $('cat-dlg').showModal();
+}
+$('add-cat').addEventListener('click', ()=>openCat(null));
+$('c-cancel').addEventListener('click', ()=>$('cat-dlg').close());
+$('c-del').addEventListener('click', ()=>{
+  const c = cats.find(x => x.id === catId); if(!c) return;
+  const n = liveTodos().filter(t => t.catId === c.id).length;
+  if(confirm(`刪除類別「${c.name}」${n ? `和裡面的 ${n} 項待辦` : ''}？`)){
+    const now = Date.now();
+    todos = todos.map(t => t.catId === c.id && !t.deleted ? { ...t, deleted:true, updatedAt: now } : t);
+    setCat(c.id, { deleted:true });
+    $('cat-dlg').close();
+  }
+});
+$('cat-form').addEventListener('submit', ev=>{
+  ev.preventDefault();
+  const name = $('c-name').value.trim();
+  if(!name){ $('c-msg').textContent = '請填名稱。'; return; }
+  const color = +(document.querySelector('[name=c-color]:checked') || { value: 0 }).value;
+  if(catId) setCat(catId, { name, color });
+  else { const now = Date.now(); cats.push({ id: newId('c'), name, kind:'custom', color, order: now, deleted:false, updatedAt: now }); changed(); }
+  $('cat-dlg').close();
+});
+
+// ---- 加入這學期的課 ----
+let courseData = null;
+async function loadCourses(){
+  if(courseData) return courseData;
+  $('cs-msg').textContent = '讀取清大課程資料中…（第一次可能要等幾十秒）';
+  try{
+    courseData = await api('/courses');
+    courseData.byKey = new Map(courseData.courses.map(c => [c.code.replace(/\s+/g, ''), c]));
+    $('cs-msg').textContent = `${courseData.sem ? `${courseData.sem.slice(0, 3)} 學年第 ${courseData.sem.slice(3, 4)} 學期・` : ''}共 ${courseData.courses.length} 門課`;
+  }catch(e){ $('cs-msg').textContent = '讀不到課程資料：' + e.message; courseData = null; }
+  return courseData;
+}
+const hasCourse = c => cats.some(x => !x.deleted && x.kind === 'course' && x.code === c.code && (!x.sem || x.sem === c.sem));
+function addCourse(c){
+  if(hasCourse(c)) return;
+  const now = Date.now();
+  cats.push({ id: newId('c'), name: c.name, kind:'course', code: c.code, teacher: c.teacher, schedule: c.schedule, sem: c.sem,
+    color: nextColor(), order: now + cats.length, deleted:false, updatedAt: now });
+}
+const courseLine = c => [c.code, c.teacher, c.schedule, c.credits ? c.credits + ' 學分' : ''].filter(Boolean).join('・');
+
+function csMode(paste){
+  $('cs-tab-search').setAttribute('aria-pressed', String(!paste));
+  $('cs-tab-paste').setAttribute('aria-pressed', String(paste));
+  $('cs-search').hidden = paste; $('cs-paste').hidden = !paste;
+  (paste ? $('cs-text') : $('cs-q')).focus();
+}
+$('cs-tab-search').addEventListener('click', ()=>csMode(false));
+$('cs-tab-paste').addEventListener('click', ()=>csMode(true));
+$('add-course').addEventListener('click', ()=>{ $('course-dlg').showModal(); csMode(false); loadCourses().then(searchCourses); });
+$('cs-close').addEventListener('click', ()=>$('course-dlg').close());
+
+function searchCourses(){
+  if(!courseData) return;
+  const q = $('cs-q').value.trim().toLowerCase(), qn = q.replace(/\s+/g, '');
+  if(!q){ $('cs-results').innerHTML = '<div class="empty">輸入關鍵字開始搜尋</div>'; return; }
+  const hit = courseData.courses.filter(c =>
+    c.name.toLowerCase().includes(q) || c.en.toLowerCase().includes(q) || c.teacher.toLowerCase().includes(q) ||
+    c.code.replace(/\s+/g, '').toLowerCase().includes(qn)).slice(0, 60);
+  $('cs-results').innerHTML = hit.length ? hit.map(c => `<div class="cr">
+      <div><b>${esc(c.name)}</b><div class="note" style="margin-top:2px">${esc(courseLine(c))}</div></div>
+      <button class="btn ${hasCourse(c) ? 'ghost' : 'primary'} small" type="button" data-course="${esc(c.code)}" ${hasCourse(c) ? 'disabled' : ''}>${hasCourse(c) ? '已加入' : '加入'}</button>
+    </div>`).join('') : '<div class="empty">找不到符合的課</div>';
+}
+let searchTimer = null;
+$('cs-q').addEventListener('input', ()=>{ clearTimeout(searchTimer); searchTimer = setTimeout(searchCourses, 200); });
+$('cs-results').addEventListener('click', e=>{
+  const b = e.target.closest('[data-course]'); if(!b || !courseData) return;
+  const c = courseData.byKey.get(b.dataset.course.replace(/\s+/g, ''));
+  if(c){ addCourse(c); changed(); searchCourses(); }
+});
+
+$('cs-parse').addEventListener('click', async ()=>{
+  if(!await loadCourses()) return;
+  const text = $('cs-text').value.toUpperCase();
+  const found = new Map();
+  for(const m of text.matchAll(/([A-Z]{2,4})\s*(\d{6})/g)){
+    const c = courseData.byKey.get(m[1] + m[2]);
+    if(c) found.set(c.code, c);
+  }
+  const list = [...found.values()];
+  $('cs-found-box').hidden = false;
+  $('cs-add-all').hidden = !list.some(c => !hasCourse(c));
+  $('cs-found').innerHTML = list.length ? list.map(c => `<label class="cr">
+      <input type="checkbox" data-pick="${esc(c.code)}" ${hasCourse(c) ? 'disabled' : 'checked'}>
+      <div><b>${esc(c.name)}</b>${hasCourse(c) ? '（已加入）' : ''}<div class="note" style="margin-top:2px">${esc(courseLine(c))}</div></div>
+    </label>`).join('') : '<div class="empty">沒有找到科號。請確認貼上的是「選課結果」頁面的內容（要包含像「CS 135601」這樣的科號）。</div>';
+});
+$('cs-add-all').addEventListener('click', ()=>{
+  const picked = [...document.querySelectorAll('[data-pick]:checked:not(:disabled)')]
+    .map(i => courseData.byKey.get(i.dataset.pick.replace(/\s+/g, ''))).filter(Boolean);
+  picked.forEach(addCourse);
+  if(picked.length){ changed(); $('cs-msg').textContent = `已加入 ${picked.length} 門課 👍`; }
+  $('cs-parse').click();
+});
+
+// =====================================================================
+// 通行碼與推播
+// =====================================================================
 $('token-form').addEventListener('submit', async ev=>{
   ev.preventDefault();
   token = $('token-input').value.trim(); lsSet(TOKEN_KEY, token);
@@ -628,7 +1152,6 @@ $('token-form').addEventListener('submit', async ev=>{
   await registerPush(); await sync(); checkService();
 });
 
-// ---- 推播 ----
 let pushSub = null;
 function b64ToUint8(s){ const p='='.repeat((4-s.length%4)%4); const b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));
   return Uint8Array.from([...b].map(c=>c.charCodeAt(0))); }
@@ -642,10 +1165,9 @@ async function refreshPushState(){
   const on = pushSub && Notification.permission==='granted';
   box.classList.toggle('on', !!on);
   st.textContent = on ? '手機推播：已開啟' : '手機推播：未開啟';
-  sub.textContent = on ? '通知時間一到會直接跳在手機上。' : '開啟後，通知時間一到會直接跳在手機上。';
+  sub.textContent = on ? '提醒時間一到會直接跳在手機上。' : '開啟後，提醒時間一到會直接跳在手機上。';
   b.textContent = on ? '發送測試' : '開啟推播';
 }
-// 把訂閱交給後端（每次開 app 都送一次，後端重啟也能補回來）
 async function registerPush(){
   if(!pushSub) return;
   try{ await api('/subscribe', { subscription: pushSub }); }catch(e){ console.error('subscribe failed', e); }
@@ -671,28 +1193,37 @@ $('push-btn').addEventListener('click', async ()=>{
   }else enablePush();
 });
 
-// ---- 全螢幕提醒 ----
+// =====================================================================
+// 全螢幕提醒
+// =====================================================================
 let alarmData = null;
 function alarmTick(){
   if(!alarmData || !$('alarm').open) return;
   const s = new Date(alarmData.start), e = new Date(alarmData.end), now = Date.now();
   const m = Math.round((s - now) / 60000);
+  const dur = x => x >= 1440 ? `${Math.floor(x/1440)} 天 ${Math.floor(x%1440/60)} 小時` : x >= 60 ? `${Math.floor(x/60)} 小時 ${x%60} 分` : `${x} 分鐘`;
+  if(alarmData.kind === 'todo'){
+    $('al-left').textContent = m > 0 ? `還有 ${dur(m)}截止` : m === 0 ? '現在截止' : `已經超過截止時間 ${dur(-m)}`;
+    return;
+  }
   $('al-left').textContent =
     now >= e ? '這段預約已經結束' :
-    m > 0 ? `還有 ${m >= 60 ? `${Math.floor(m/60)} 小時 ${m%60} 分` : `${m} 分鐘`}開始` :
+    m > 0 ? `還有 ${dur(m)}開始` :
     m === 0 ? '現在開始，記得刷卡報到' : `已開始 ${-m} 分鐘，還沒刷卡請立刻去報到`;
 }
 function showAlarm(a){
   if(!a || !a.start) return;
   alarmData = a;
   const s = new Date(a.start);
-  const b = bookings.find(x => x.id === a.bookingId);
-  $('al-title').textContent = a.title || '圖書館預約提醒';
+  const isTodo = a.kind === 'todo';
+  const b = bookings.find(x => x.id === a.bookingId), t = todos.find(x => x.id === a.todoId);
+  const already = isTodo ? !!(t && t.done) : !!(b && b.checkedIn);
+  $('al-title').textContent = a.title || '提醒';
   $('al-space').textContent = a.space || '';
-  $('al-time').textContent = fmtHM(s);
+  $('al-time').textContent = s.toDateString() === new Date().toDateString() ? fmtHM(s) : `${s.getMonth()+1}/${s.getDate()} ${fmtHM(s)}`;
   $('al-checkin').hidden = a.kind === 'at';
-  $('al-checkin').textContent = b && b.checkedIn ? '✅ 已經報到了' : '✅ 我已報到';
-  $('al-checkin').disabled = !!(b && b.checkedIn);
+  $('al-checkin').textContent = isTodo ? (already ? '✅ 已經完成了' : '✅ 標記完成') : (already ? '✅ 已經報到了' : '✅ 我已報到');
+  $('al-checkin').disabled = already;
   $('al-msg').textContent = '';
   [$('al-snooze'), $('al-ok')].forEach(x => x.disabled = false);
   if(!$('alarm').open) $('alarm').showModal();
@@ -704,6 +1235,13 @@ $('al-ok').addEventListener('click', ()=>$('alarm').close());
 $('al-checkin').addEventListener('click', async ()=>{
   const a = alarmData; if(!a) return;
   $('al-checkin').disabled = true;
+  if(a.kind === 'todo'){
+    const t = todos.find(x => x.id === a.todoId);
+    if(t){ setTodo(t.id, { done:true, doneAt: Date.now() }); return closeAlarmSoon('已標記完成 👍'); }
+    try{ await api('/todo-done', { id: a.todoId }); sync(); closeAlarmSoon('已標記完成 👍'); }
+    catch(e){ $('al-checkin').disabled = false; $('al-msg').textContent = '沒有成功：' + e.message; }
+    return;
+  }
   if(!a.bookingId) return closeAlarmSoon('（這是測試提醒，不會記錄）');
   const b = bookings.find(x => x.id === a.bookingId);
   if(b){ update(b.id, { checkedIn: Date.now() }); return closeAlarmSoon('已記錄報到，之後不會再催你 👍'); }
@@ -721,12 +1259,17 @@ navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', e
   if(e.data && e.data.type === 'alert') showAlarm(e.data.alert);
   if(e.data && e.data.type === 'refresh') sync();
 });
+try{
+  const q = new URLSearchParams(location.search).get('alert');
+  if(q){ history.replaceState(null, '', location.pathname); showAlarm(JSON.parse(q)); }
+}catch(e){}
 
-// ---- 首頁：提醒服務狀態 ----
+// =====================================================================
+// 首頁：提醒服務狀態
+// =====================================================================
 // lastCron = cron-job.org 最後一次叫醒後端的時間。超過 3 分鐘沒叫，代表 Render 睡著時提醒會發不出去
 async function checkService(){
-  const el = $('svc');
-  const set = (cls, t) => { el.className = 'svc ' + cls; el.textContent = t; };
+  const set = (cls, t) => { $('svc').className = 'svc ' + cls; $('svc').textContent = t; };
   let h;
   try{
     const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 60000);
@@ -737,25 +1280,23 @@ async function checkService(){
   const ago = h.lastCron ? Math.round((h.now - h.lastCron) / 60000) : null;
   if(!pushOn) return set('warn', '⚠️ 這支手機還沒開啟推播，點 🔔 開啟');
   if(!h.devices) return set('warn', '⚠️ 後端沒有登記這支手機，點 🔔 →「發送測試」確認一下');
+  if(h.storage === 'file') return set('warn', '⚠️ 後端還沒接上雲端資料庫，Render 重啟時待辦可能會不見');
   if(ago === null && h.now - h.startedAt < 3 * 60000) return set('', '提醒服務剛重新啟動，確認中…');
   if(ago === null || ago > 3) return set('bad', `⚠️ 提醒服務${ago === null ? '一直' : `已經 ${ago} 分鐘`}沒被 cron-job.org 叫醒，請檢查 cron-job.org`);
   set('ok', `✅ 提醒服務正常・${ago <= 0 ? '剛剛' : `${ago} 分鐘前`}檢查過`);
 }
 setInterval(()=>{ if(!document.hidden) checkService(); }, 120000);
 
-// 通知上的「已報到 / 5 分鐘後」按鈕是在背景執行的，需要知道後端網址和通行碼
+// 通知上的「已報到／完成／5 分鐘後」按鈕是在背景執行的，需要知道後端網址和通行碼
 async function saveSwConfig(){
   try{ await (await caches.open('nthu-lib-config')).put('config', new Response(JSON.stringify({ api: PUSH_API, token }))); }catch(e){}
 }
-// 從通知點進來：網址帶著 ?alert=...
-try{
-  const q = new URLSearchParams(location.search).get('alert');
-  if(q){ history.replaceState(null, '', location.pathname); showAlarm(JSON.parse(q)); }
-}catch(e){}
 
-// ---- 啟動 ----
-renderAll();   // 先用手機裡的快取顯示
-setInterval(renderAll, 30000);   // 讓「下一則」和數字跟著時間更新
+// =====================================================================
+// 啟動
+// =====================================================================
+renderAll();   // 先用手機裡的資料顯示
+setInterval(renderAll, 30000);   // 讓「下一則」、截止倒數跟著時間更新
 let lastSync = 0;
 document.addEventListener('visibilitychange', ()=>{
   if(document.hidden) return;

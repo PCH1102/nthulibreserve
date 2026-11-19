@@ -1,7 +1,19 @@
-# 圖書館提醒 — 推播後端
+# MyNTHU — 後端
 
-這個小後端只做一件事：在你設定的提醒時間，發一則 Web Push 通知到你的手機。
-它**只儲存推播訂閱和提醒時間**，不碰任何學校帳號、密碼或圖書館預約系統。
+負責：圖書館預約提醒與待辦的截止提醒（Web Push）、同步待辦資料、代抓清大公開課程資料。
+它**不碰任何學校帳號或密碼**。
+
+## 〇、雲端資料庫（Upstash，免費）
+
+Render 免費方案重新部署時會清空檔案，所以待辦資料存在 Upstash Redis：
+
+1. 到 <https://upstash.com> 註冊（可以用 Google 帳號），**Create Database** → 類型選 **Redis**，
+   名稱隨意（例如 `mynthu`），Region 選離台灣近的（例如 Tokyo / Singapore），方案 **Free**。
+2. 建好後在資料庫頁面找到 **REST API** 區塊，複製 `UPSTASH_REDIS_REST_URL` 和 `UPSTASH_REDIS_REST_TOKEN`。
+3. 到 Render → 你的服務 → **Environment**，新增這兩個變數（名稱一字不差），存檔後 Render 會自動重新部署。
+4. 打開 app，首頁「下一則提醒」下面不再出現「還沒接上雲端資料庫」就完成了。
+
+> 沒設定這兩個變數也能跑，只是資料存在 Render 的檔案裡，重新部署就會不見。
 
 ## 一、產生 VAPID 金鑰
 
@@ -59,4 +71,5 @@ Render 免費方案沒人用時會休眠，所以用一個免費外部排程每�
 - 預約來源是 Google Apps Script 讀圖書館的預約通知信（見 `../apps-script/README.md`），送到 `/mail-bookings`。
 - app 的🔔通知總覽可以查看、編輯（日期、時間、開始前／開始後幾分鐘）、刪除每筆通知，以及設定自動加入時的預設值。
 - webapp 與 Apps Script 都要帶通行碼才能讀寫，通行碼就是 `TICK_TOKEN`（想分開可另設 `APP_TOKEN`，但 cron 網址也要改用它）。
-- Render 重新部署清掉資料時：Apps Script 下一輪會補回預約，app 開啟時會補回你的編輯和推播訂閱。
+- 待辦、類別、預約通知都存在 Upstash；手機上也有一份，離線時照樣能看、能改，連上線會自動同步。
+- 「加入這學期的課」用的是清大公開課程資料（`/courses`，後端代抓並快取 6 小時），不需要登入校務系統。
