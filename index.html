@@ -68,6 +68,8 @@ h2{font-size:15px; color:var(--mute); font-weight:600; margin:20px 4px 8px}
 .push-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
 .push-row b{font-size:15px}
 #push-box.on b{color:var(--ok)}
+#official-sync-box .sync-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#official-sync-box .sync-row b{font-size:15px}
 #bookings:empty::after{content:'還沒有提醒。'; color:var(--mute); font-size:14px}
 .bk{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border-bottom:1px solid var(--line)}
 .bk:last-child{border-bottom:0}
@@ -105,6 +107,23 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
   <a class="btn primary" id="book" href="https://idm.nthu.ust.edu.tw/openid/886UST_NTHU/authorize/?client_id=227897&response_type=code&redirect_uri=https://libsms.lib.nthu.edu.tw/openidcallback.aspx&state=RWD&scope=openid" target="_blank" rel="noopener">登入並預約座位</a>
   <a class="btn ghost" href="https://libsms.lib.nthu.edu.tw/build/" target="_blank" rel="noopener">開啟預約系統首頁</a>
 </div>
+
+<section class="card" id="official-sync-box">
+  <div class="sync-row">
+    <div><b>自動抓預約</b><div class="note" id="official-sync-status">還沒連結。預約完在預約系統點一下書籤即可。</div></div>
+    <button class="btn ghost" id="official-sync-btn" type="button" style="min-height:40px;padding:0 14px;white-space:nowrap">立即同步</button>
+  </div>
+  <details class="note" id="bm-help">
+    <summary>設定書籤（只要做一次）</summary>
+    <ol style="padding-left:20px;margin:8px 0;line-height:1.7">
+      <li>按下面的「複製書籤」。</li>
+      <li>在 Chrome 隨便把一個網頁加入書籤，再編輯它：名稱改成 <b>抓預約</b>，網址整個換成剛剛複製的內容。</li>
+      <li>以後在圖書館預約系統預約完，點網址列輸入「抓預約」，點選出現的書籤。</li>
+    </ol>
+    <button class="btn ghost" id="bm-copy" type="button" style="min-height:40px;padding:0 14px;width:100%">複製書籤</button>
+    <textarea id="bm-code" readonly rows="3" style="width:100%;margin-top:8px;font-size:12px;color:var(--mute);background:var(--bg);border:1px solid var(--line);border-radius:8px"></textarea>
+  </details>
+</section>
 
 <h2>預約提醒</h2>
 <div class="card" id="push-box">
@@ -289,6 +308,9 @@ function buildICS({space, start, end, before, after}){
 
 // === 推播後端網址：部署到 Render 後，把下面換成你的網址（結尾不要加斜線）===
 const PUSH_API = 'https://nthu-lib-push.onrender.com';   // 你的 Render 後端
+// 官方預約系統的 API（登入由你自己在官方頁面完成，這裡只用書籤帶回來的 sid / authid 查預約）
+const OFFICIAL_API = 'https://libsms.lib.nthu.edu.tw/RWDAPI_New';
+const OFF_KEY = 'nthu-lib-official';
 
 // ---- 讀表單、驗證，回傳一筆預約或 null ----
 function readForm(){
@@ -323,11 +345,112 @@ function renderBookings(){
   $('bookings').innerHTML = bookings.map(b=>{
     const past = new Date(b.start).getTime() + (b.after||0)*60000 < Date.now();
     const parts = [b.before?`前 ${b.before} 分`:null, b.after?`後 ${b.after} 分`:null].filter(Boolean).join('、');
+    const action = b.source==='official' ? '<span class="tag">官方</span>'
+      : `<button type="button" data-del="${b.id}">刪除</button>`;
     return `<div class="bk${past?' past':''}"><div><div class="t">${esc(b.space)}</div>
-      <div class="d">${fmtDate(b.start)}｜提醒：${parts}</div></div>
-      <button type="button" data-del="${b.id}">刪除</button></div>`;
+      <div class="d">${fmtDate(b.start)}｜提醒：${parts||'無'}</div></div>${action}</div>`;
   }).join('');
 }
+
+function cleanExpiredBookings(){
+  const cutoff = Date.now() - 24 * 3600 * 1000;
+  const before = bookings.length;
+  bookings = bookings.filter(b => new Date(b.end || b.start).getTime() >= cutoff);
+  if(bookings.length !== before) saveBookings();
+  return bookings.length !== before;
+}
+
+// ---- 官方預約自動同步 ----
+// 書籤在官方預約頁讀出 sid / authid，帶到 #lib=... 回到這個 app。
+let official = null;   // { sid, authid, expired, t }
+try{ official = JSON.parse(localStorage.getItem(OFF_KEY)); }catch(e){}
+function saveOfficial(){ try{ localStorage.setItem(OFF_KEY, JSON.stringify(official)); }catch(e){} }
+(function importFromHash(){
+  const m = location.hash.match(/^#lib=(.+)$/); if(!m) return;
+  history.replaceState(null, '', location.pathname + location.search);   // 立刻把代碼從網址拿掉
+  try{
+    const [sid, authid] = JSON.parse(decodeURIComponent(m[1]));
+    if(typeof sid==='string' && typeof authid==='string' && sid && authid){
+      official = { sid, authid, expired:false, t:Date.now() }; saveOfficial();
+    }
+  }catch(e){}
+})();
+
+// 使用者在表單設定的提醒分鐘數，也套用到官方預約
+function reminderDefaults(){
+  let s = {}; try{ s = JSON.parse(localStorage.getItem(SET_KEY)) || {}; }catch(e){}
+  const before = s.beforeOn===false ? 0 : (parseInt(s.before,10) || 10);
+  const after  = s.afterOn ? (parseInt(s.after,10) || 5) : 0;
+  return { before, after };
+}
+
+// bookedatetime 例：「20261119 14:00:00~16:00:00」，一律視為台灣時間
+function parseOfficialTime(s){
+  const m = String(s||'').match(/(\d{4})\D?(\d{2})\D?(\d{2})\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*~\s*(\d{1,2}):(\d{2})/);
+  if(!m) return null;
+  const day = `${m[1]}-${m[2]}-${m[3]}`;
+  const start = new Date(`${day}T${pad(m[4])}:${m[5]}:00+08:00`);
+  let end = new Date(`${day}T${pad(m[6])}:${m[7]}:00+08:00`);
+  if(isNaN(start) || isNaN(end)) return null;
+  if(end <= start) end = new Date(end.getTime() + 864e5);
+  return { start, end };
+}
+function officialToBookings(rows){
+  const { before, after } = reminderDefaults();
+  return (rows||[]).map(r=>{
+    const t = parseOfficialTime(r.bookedatetime); if(!t || !r.bookid) return null;
+    const space = [r.zonename || r.spacetypename, r.devname].filter(Boolean).join(' ') || '圖書館預約';
+    return { id:`official:${r.bookid}`, source:'official', space,
+      start:t.start.toISOString(), end:t.end.toISOString(), before, after };
+  }).filter(b => b && new Date(b.end).getTime() > Date.now());
+}
+
+function setOfficialStatus(text, isErr){
+  const el = $('official-sync-status'); el.textContent = text; el.classList.toggle('err', !!isErr);
+}
+async function syncOfficialBookings(){
+  if(!official){ setOfficialStatus('還沒連結。預約完在預約系統點一下書籤即可。'); return false; }
+  if(official.expired){ setOfficialStatus('官方登入已過期。下次預約完再點一次書籤就會恢復。'); return false; }
+  const button = $('official-sync-btn'); button.disabled = true;
+  setOfficialStatus('同步中…');
+  try{
+    const q = new URLSearchParams({ sid:official.sid, authid:official.authid, restype:'json' });
+    const ctl = new AbortController(); const timer = setTimeout(()=>ctl.abort(), 12000);
+    const r = await fetch(`${OFFICIAL_API}/GetBookInfo.aspx?${q}`, { cache:'no-store', signal:ctl.signal });
+    clearTimeout(timer);
+    if(!r.ok) throw new Error(`官方系統回應 ${r.status}`);
+    const res = (await r.json())[0] || {};
+    if(res.rescode==='3' || res.rescode==='4'){
+      official.expired = true; saveOfficial();
+      setOfficialStatus('官方登入已過期。已排好的通知不受影響；下次預約完再點一次書籤。');
+      return false;
+    }
+    if(res.rescode!=='1') throw new Error(res.resmsg || '官方系統回傳錯誤');
+    const list = officialToBookings(res.resdata);
+    bookings = [...bookings.filter(b => b.source !== 'official'), ...list];
+    saveBookings(); renderBookings(); await syncReminders();
+    setOfficialStatus(`已同步 ${list.length} 筆預約（${hm(Date.now())}）。後端會持續自動檢查。`);
+    return true;
+  }catch(e){
+    setOfficialStatus(`同步失敗：${e.name==='AbortError' ? '官方系統沒有回應' : (e.message || e)}`, true);
+    return false;
+  }finally{ button.disabled = false; }
+}
+
+// 書籤程式碼：在官方預約頁執行，把登入代碼帶回這個 app
+(function initBookmarklet(){
+  const app = location.origin + location.pathname;
+  const code = "javascript:(function(){var s=sessionStorage.getItem('sid'),a=sessionStorage.getItem('authid');"
+    + "if(!s||!a){alert('請先在這個分頁登入圖書館預約系統');return;}"
+    + `location.href='${app}#lib='+encodeURIComponent(JSON.stringify([s,a]));})()`;
+  $('bm-code').value = code;
+  $('bm-copy').addEventListener('click', async ()=>{
+    try{ await navigator.clipboard.writeText(code); $('bm-copy').textContent = '已複製 ✓'; }
+    catch(e){ $('bm-code').select(); $('bm-copy').textContent = '請長按下方文字手動複製'; }
+  });
+  if(!official) $('bm-help').open = true;
+})();
+
 $('bookings').addEventListener('click', e=>{
   const id = e.target.getAttribute('data-del'); if(!id) return;
   bookings = bookings.filter(b=>b.id!==id); saveBookings(); renderBookings(); syncReminders();
@@ -350,7 +473,9 @@ async function syncReminders(){
   if(!PUSH_API || !pushSub) return;
   try{
     await fetch(PUSH_API+'/sync', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ subscription: pushSub, reminders: remindersFromBookings() }) });
+      body: JSON.stringify({ subscription: pushSub, reminders: remindersFromBookings(),
+        // 讓後端之後自己定期查官方預約（登入過期就停）
+        official: official && !official.expired ? { sid:official.sid, authid:official.authid, ...reminderDefaults() } : null }) });
   }catch(e){ console.error('sync failed', e); }
 }
 
@@ -363,6 +488,8 @@ $('remind').addEventListener('submit', ev=>{
     : '已加入清單。<a href="javascript:;" id="ics-link2">開啟推播</a>後才會真的通知你。';
   const l2 = document.getElementById('ics-link2'); if(l2) l2.onclick = enablePush;
 });
+
+$('official-sync-btn').addEventListener('click', syncOfficialBookings);
 
 // 保留行事曆檔作為備用
 $('r-msg').addEventListener('click', e=>{
@@ -413,12 +540,17 @@ $('push-btn').addEventListener('click', async ()=>{
   }else enablePush();
 });
 
+cleanExpiredBookings();
 renderBookings();
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js')
-    .then(()=>refreshPushState().then(()=>{ if(pushSub) syncReminders(); }))
-    .catch(()=>{});
-}
+    .then(()=>refreshPushState())
+    .catch(()=>{})
+    .then(async ()=>{
+      // 能同步官方預約就順便送出提醒；否則只把現有清單送到後端
+      if(!(await syncOfficialBookings())) await syncReminders();
+    });
+}else syncOfficialBookings();
 </script>
 </body>
 </html>
