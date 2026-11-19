@@ -1,6 +1,7 @@
 // 清大圖書館座位 — 個人推播後端
-// 只存「推播訂閱」與「提醒時間」，不碰任何學校帳密或預約系統。
-// 前端把每筆提醒的觸發時間算好送來，這裡在時間到時發 Web Push。
+// 預約來源：Google Apps Script 讀到圖書館「預約通知函」後送進來（/mail-bookings）
+// webapp 可以查看、編輯、刪除每筆預約的通知（/bookings）
+// 後端依每筆預約的「開始前 / 開始後幾分鐘」算出提醒時間，時間到發 Web Push。
 
 import express from 'express';
 import webpush from 'web-push';
@@ -10,7 +11,8 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC = process.env.VAPID_PUBLIC || '';
 const PRIVATE = process.env.VAPID_PRIVATE || '';
 const SUBJECT = process.env.VAPID_SUBJECT || 'mailto:you@example.com';
-const TICK_TOKEN = process.env.TICK_TOKEN || '';          // 保護 /tick，避免被亂打
+// 通行碼：webapp 與 Apps Script 都要帶這個才能讀寫。沒另外設 APP_TOKEN 就沿用 TICK_TOKEN。
+const TOKEN = process.env.APP_TOKEN || process.env.TICK_TOKEN || '';
 const DATA_FILE = process.env.DATA_FILE || './data.json';
 
 if (!PUBLIC || !PRIVATE) {
@@ -19,17 +21,89 @@ if (!PUBLIC || !PRIVATE) {
 }
 webpush.setVapidDetails(SUBJECT, PUBLIC, PRIVATE);
 
-// ---- 儲存（檔案 best-effort；Render 免費方案重新部署會清空，前端每次開啟會重新同步，所以沒關係）----
-let devices = {};   // { [endpoint]: { subscription, reminders:[{id, fireAt, title, body, sent}] } }
-try { devices = JSON.parse(readFileSync(DATA_FILE, 'utf8')); } catch (e) { devices = {}; }
+// ---- 儲存 ----
+// Render 免費方案重啟會清空檔案；Apps Script 每 5 分鐘會重送預約、webapp 開啟時會重送你的編輯，所以會自己補回來。
+const emptyDb = () => ({ subs: {}, bookings: {}, sent: {}, settings: { before: 10, after: 5, updatedAt: 0 } });
+let db = emptyDb();
+try {
+  const d = JSON.parse(readFileSync(DATA_FILE, 'utf8'));
+  if (d && d.bookings) db = { ...emptyDb(), ...d };   // 舊版格式就直接重來
+} catch (e) { /* 第一次啟動 */ }
 let saveTimer = null;
 function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try { writeFileSync(DATA_FILE, JSON.stringify(devices)); } catch (e) { console.error('save failed', e.message); }
+    try { writeFileSync(DATA_FILE, JSON.stringify(db)); } catch (e) { console.error('save failed', e.message); }
   }, 500);
 }
 
+// ---- 工具 ----
+const clampMin = v => Math.max(0, Math.min(720, parseInt(v, 10) || 0));
+const hmTW = d => new Date(d).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false });
+
+function cleanBooking(b) {
+  if (!b || typeof b.id !== 'string' || !b.id) return null;
+  const start = Date.parse(b.start), end = Date.parse(b.end);
+  if (isNaN(start) || isNaN(end) || end <= start) return null;
+  return {
+    id: b.id.slice(0, 120),
+    source: b.source === 'mail' ? 'mail' : 'app',
+    space: String(b.space || '圖書館預約').slice(0, 60),
+    start: new Date(start).toISOString(),
+    end: new Date(end).toISOString(),
+    before: clampMin(b.before),
+    after: clampMin(b.after),
+    deleted: !!b.deleted,
+    updatedAt: Number(b.updatedAt) || 0,
+  };
+}
+
+// 每筆預約的提醒。id 含觸發時間，所以改了時間就是一則新的提醒，會重新發送。
+function remindersOf(b) {
+  if (b.deleted) return [];
+  const start = Date.parse(b.start);
+  const out = [];
+  if (b.before) {
+    const t = start - b.before * 60000;
+    out.push({ id: `${b.id}|b|${t}`, fireAt: t, title: '圖書館預約即將開始',
+      body: `${b.space}　${b.before} 分鐘後（${hmTW(start)}）開始` });
+  }
+  if (b.after) {
+    const t = start + b.after * 60000;
+    out.push({ id: `${b.id}|a|${t}`, fireAt: t, title: '⚠️ 記得刷卡報到',
+      body: `${b.space} 已開始 ${b.after} 分鐘，還沒刷卡請立刻去報到` });
+  }
+  return out;
+}
+
+// 剛加入或剛改過的預約：已經過去的提醒不要補發
+function skipPast(b) {
+  const now = Date.now();
+  for (const r of remindersOf(b)) if (r.fireAt < now - 60000 && !db.sent[r.id]) db.sent[r.id] = now;
+}
+
+// 以 updatedAt 較新的為準（刪除也是一種更新，用 deleted:true 記住，避免被信件重新加回來）
+function mergeBookings(list) {
+  let changed = 0;
+  for (const raw of Array.isArray(list) ? list.slice(0, 300) : []) {
+    const b = cleanBooking(raw); if (!b) continue;
+    const cur = db.bookings[b.id];
+    if (!cur || b.updatedAt > cur.updatedAt) { db.bookings[b.id] = b; skipPast(b); changed++; }
+  }
+  return changed;
+}
+
+function prune() {
+  const cutoff = Date.now() - 2 * 864e5;
+  for (const [id, b] of Object.entries(db.bookings)) if (Date.parse(b.end) < cutoff) delete db.bookings[id];
+  for (const [id, t] of Object.entries(db.sent)) if (t < cutoff) delete db.sent[id];
+}
+
+const visibleBookings = () => Object.values(db.bookings)
+  .filter(b => Date.parse(b.end) > Date.now() - 12 * 3600e3)
+  .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+
+// ---- HTTP ----
 const app = express();
 app.use(express.json({ limit: '256kb' }));
 
@@ -40,129 +114,60 @@ app.use((req, res, next) => {
   if (o && ALLOW.some(re => re.test(o))) {
     res.set('Access-Control-Allow-Origin', o);
     res.set('Vary', 'Origin');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Token');
     res.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   }
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
 
+const auth = (req, res, next) =>
+  (!TOKEN || req.get('X-Token') === TOKEN || req.query.token === TOKEN) ? next() : res.status(401).json({ error: 'bad token' });
+
 app.get('/', (_req, res) => res.type('text').send('nthu-lib push backend OK'));
-app.get('/health', (_req, res) => {
-  const offs = Object.values(devices).map(d => d.official).filter(Boolean);
-  res.json({ ok: true, devices: Object.keys(devices).length,
-    official: { active: offs.filter(o => !o.expired).length, expired: offs.filter(o => o.expired).length } });
-});
+app.get('/health', (_req, res) => res.json({
+  ok: true, devices: Object.keys(db.subs).length,
+  bookings: visibleBookings().filter(b => !b.deleted).length,
+}));
 app.get('/vapid', (_req, res) => res.json({ key: PUBLIC }));
 
-// 新進來的提醒：沿用舊的 sent 狀態；第一次看到、而且時間早就過了的，直接當作已發（避免重啟後補發一堆舊通知）
-function mergeReminders(prevList, incoming) {
-  const prevSent = new Map((prevList || []).map(r => [r.id, r.sent]));
-  const now = Date.now();
-  return incoming.map(r => ({
-    ...r,
-    sent: prevSent.has(r.id) ? prevSent.get(r.id) : Date.parse(r.fireAt) < now - 60000,
-  }));
-}
+// webapp：讀取所有預約（含已刪除的標記，讓手機端也知道被刪了）
+app.get('/bookings', auth, (_req, res) => res.json({ bookings: visibleBookings(), settings: db.settings }));
 
-// 前端把這台裝置的訂閱 + 所有提醒（已算好觸發時間）整包送來，覆蓋舊的
-app.post('/sync', (req, res) => {
-  const { subscription, reminders, official } = req.body || {};
-  if (!subscription || !subscription.endpoint) return res.status(400).json({ error: 'no subscription' });
-  const prev = devices[subscription.endpoint];
-  const clean = (Array.isArray(reminders) ? reminders : [])
-    .filter(r => r && r.id && r.fireAt && !isNaN(Date.parse(r.fireAt)))
-    .slice(0, 200)
-    .map(r => ({
-      id: String(r.id), fireAt: new Date(r.fireAt).toISOString(),
-      title: String(r.title || '圖書館提醒').slice(0, 80),
-      body: String(r.body || '').slice(0, 200),
-    }));
-  // 官方預約的登入代碼：前端有送就更新，沒送就沿用舊的
-  let off = prev?.official || null;
-  if (official && typeof official.sid === 'string' && typeof official.authid === 'string') {
-    const same = off && off.sid === official.sid && off.authid === official.authid;
-    off = {
-      sid: official.sid.slice(0, 200), authid: official.authid.slice(0, 200),
-      before: clampMin(official.before), after: clampMin(official.after),
-      expired: same ? off.expired : false, lastPoll: same ? off.lastPoll : 0,
-      since: same ? off.since : Date.now(),
-    };
+// webapp：送出編輯／刪除／預設值，回傳合併後的完整清單
+app.post('/bookings', auth, (req, res) => {
+  const { bookings, settings } = req.body || {};
+  const changed = mergeBookings(bookings);
+  if (settings && Number(settings.updatedAt) > db.settings.updatedAt) {
+    db.settings = { before: clampMin(settings.before), after: clampMin(settings.after), updatedAt: Number(settings.updatedAt) };
   }
-  devices[subscription.endpoint] = { subscription, reminders: mergeReminders(prev?.reminders, clean), official: off };
-  save();
-  res.json({ ok: true, count: clean.length, official: off ? (off.expired ? 'expired' : 'active') : 'none' });
+  prune(); save();
+  res.json({ ok: true, changed, bookings: visibleBookings(), settings: db.settings });
 });
 
-// ---- 官方預約：用書籤帶來的 sid / authid 定期查「我的預約」，自動排提醒 ----
-const OFFICIAL_API = 'https://libsms.lib.nthu.edu.tw/RWDAPI_New';
-const POLL_MS = 5 * 60 * 1000;
-const clampMin = v => Math.max(0, Math.min(720, parseInt(v, 10) || 0));
-const hmTW = d => d.toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false });
-
-// bookedatetime 例：「20261119 14:00:00~16:00:00」，伺服器在 UTC，所以明確當作台灣時間 (+08:00)
-function parseOfficialTime(s) {
-  const m = String(s || '').match(/(\d{4})\D?(\d{2})\D?(\d{2})\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*~\s*(\d{1,2}):(\d{2})/);
-  if (!m) return null;
-  const p = n => String(n).padStart(2, '0');
-  const day = `${m[1]}-${m[2]}-${m[3]}`;
-  const start = new Date(`${day}T${p(m[4])}:${m[5]}:00+08:00`);
-  let end = new Date(`${day}T${p(m[6])}:${m[7]}:00+08:00`);
-  if (isNaN(start) || isNaN(end)) return null;
-  if (end <= start) end = new Date(end.getTime() + 864e5);
-  return { start, end };
-}
-
-// 跟前端 remindersFromBookings 用一樣的 id（official:<bookid>-b / -a），兩邊同步才不會重複
-function officialReminders(rows, before, after) {
-  const out = [];
-  for (const r of rows || []) {
-    const t = parseOfficialTime(r.bookedatetime);
-    if (!t || !r.bookid || t.end.getTime() < Date.now()) continue;
-    const space = [r.zonename || r.spacetypename, r.devname].filter(Boolean).join(' ') || '圖書館預約';
-    const id = `official:${r.bookid}`;
-    if (before) out.push({ id: id + '-b', fireAt: new Date(t.start.getTime() - before * 60000).toISOString(),
-      title: '圖書館預約即將開始', body: `${space}　${before} 分鐘後（${hmTW(t.start)}）開始` });
-    if (after) out.push({ id: id + '-a', fireAt: new Date(t.start.getTime() + after * 60000).toISOString(),
-      title: '記得刷卡啟用', body: `${space} 預約已開始 ${after} 分鐘，請於時段內刷卡啟用` });
+// Apps Script：從預約通知信解析出的預約。已經有的不覆蓋（保留你的編輯和刪除）
+app.post('/mail-bookings', auth, (req, res) => {
+  const list = Array.isArray(req.body?.bookings) ? req.body.bookings.slice(0, 100) : [];
+  let added = 0;
+  for (const raw of list) {
+    const b = cleanBooking({ ...raw, source: 'mail', before: db.settings.before, after: db.settings.after, updatedAt: 0 });
+    if (!b || db.bookings[b.id] || Date.parse(b.end) < Date.now()) continue;
+    db.bookings[b.id] = b; skipPast(b); added++;
+    console.log(`mail booking added: ${b.space} ${b.start}`);
   }
-  return out;
-}
+  if (added) save();
+  res.json({ ok: true, added });
+});
 
-async function pollOfficial(endpoint, dev) {
-  const off = dev.official;
-  off.lastPoll = Date.now();
-  try {
-    const q = new URLSearchParams({ sid: off.sid, authid: off.authid, restype: 'json' });
-    const r = await fetch(`${OFFICIAL_API}/GetBookInfo.aspx?${q}`, { signal: AbortSignal.timeout(15000) });
-    if (!r.ok) return;
-    const res = (await r.json())[0] || {};
-    if (res.rescode === '3' || res.rescode === '4') {
-      off.expired = true;
-      const mins = Math.round((Date.now() - off.since) / 60000);
-      console.log(`official session expired after ${mins} min`);
-      // 主動通知，不用靠自己記得：下次預約完再點一次書籤
-      try {
-        await webpush.sendNotification(dev.subscription, JSON.stringify({
-          title: '自動抓預約已斷線',
-          body: `官方登入在 ${mins >= 120 ? Math.round(mins / 60) + ' 小時' : mins + ' 分鐘'}後過期。下次登入預約系統時，點一下「抓預約」書籤就會恢復。`,
-        }));
-      } catch (e) { console.error('expiry notice failed', e.statusCode || e.message); }
-      return;
-    }
-    if (res.rescode !== '1') return;
-    // 換掉舊的官方提醒（被取消的預約會自然消失），手動新增的保留
-    const fresh = officialReminders(res.resdata, off.before, off.after);
-    const manual = dev.reminders.filter(x => !x.id.startsWith('official:'));
-    const prevOfficial = dev.reminders.filter(x => x.id.startsWith('official:'));
-    dev.reminders = [...manual, ...mergeReminders(prevOfficial, fresh)];
-  } catch (e) {
-    console.error('official poll failed', e.message);   // 網路問題：保留原本的提醒，下次再試
-  }
-}
+// 手機訂閱推播（每次開 app 都會重送，後端重啟後自動補回）
+app.post('/subscribe', auth, (req, res) => {
+  const sub = req.body?.subscription;
+  if (!sub?.endpoint) return res.status(400).json({ error: 'no subscription' });
+  db.subs[sub.endpoint] = sub; save();
+  res.json({ ok: true });
+});
 
-// 立即送一則測試推播
-app.post('/test', async (req, res) => {
+app.post('/test', auth, async (req, res) => {
   const sub = req.body?.subscription;
   if (!sub?.endpoint) return res.status(400).json({ error: 'no subscription' });
   try {
@@ -171,61 +176,53 @@ app.post('/test', async (req, res) => {
   } catch (e) { res.status(502).json({ error: e.statusCode || e.message }); }
 });
 
-// 診斷用：直接對所有已訂閱裝置送一則測試推播，並把每台的結果回報
-app.all('/testall', async (req, res) => {
-  if (TICK_TOKEN && req.query.token !== TICK_TOKEN) return res.status(403).json({ error: 'bad token' });
+// 診斷用：對所有已訂閱裝置送一則測試推播
+app.all('/testall', auth, async (_req, res) => {
   const results = [];
-  for (const [endpoint, dev] of Object.entries(devices)) {
+  for (const [endpoint, sub] of Object.entries(db.subs)) {
     try {
-      await webpush.sendNotification(dev.subscription, JSON.stringify({ title: '診斷測試', body: '這則是後端直接送出的 ✅' }));
+      await webpush.sendNotification(sub, JSON.stringify({ title: '診斷測試', body: '這則是後端直接送出的 ✅' }));
       results.push({ endpoint: endpoint.slice(0, 40) + '…', ok: true });
     } catch (e) {
-      results.push({ endpoint: endpoint.slice(0, 40) + '…', ok: false, status: e.statusCode || null, error: String(e.body || e.message).slice(0, 200) });
-      if (e.statusCode === 404 || e.statusCode === 410) delete devices[endpoint];
+      results.push({ endpoint: endpoint.slice(0, 40) + '…', ok: false, status: e.statusCode || null });
+      if (e.statusCode === 404 || e.statusCode === 410) delete db.subs[endpoint];
     }
   }
+  save();
   res.json({ devices: results.length, results });
 });
 
-// 外部 cron 每分鐘打一次：發送到點的提醒
-// 外部 cron 和內建 setInterval 可能同時呼叫 tick；同一時間只跑一個，避免同一則提醒被發兩次
+// ---- 發送到點的提醒 ----
+async function pushAll(payload) {
+  for (const [endpoint, sub] of Object.entries(db.subs)) {
+    try { await webpush.sendNotification(sub, payload); }
+    catch (e) { if (e.statusCode === 404 || e.statusCode === 410) delete db.subs[endpoint]; }   // 訂閱已失效
+  }
+}
+
+// 外部 cron 和內建 setInterval 可能同時呼叫；同一時間只跑一個，避免重複發送
 let ticking = null;
 function tick() {
   if (!ticking) ticking = runTick().finally(() => { ticking = null; });
   return ticking;
 }
 async function runTick() {
-  let polled = false;
-  for (const [endpoint, dev] of Object.entries(devices)) {
-    const off = dev.official;
-    if (off && !off.expired && Date.now() - (off.lastPoll || 0) >= POLL_MS) { await pollOfficial(endpoint, dev); polled = true; }
-  }
-  if (polled) save();
   const now = Date.now();
   let sent = 0;
-  for (const [endpoint, dev] of Object.entries(devices)) {
-    for (const r of dev.reminders) {
-      if (r.sent) continue;
-      const t = Date.parse(r.fireAt);
-      if (t > now) continue;
-      if (now - t > 2 * 3600 * 1000) { r.sent = true; continue; }  // 超過 2 小時沒發到就放棄，不補發
-      try {
-        await webpush.sendNotification(dev.subscription, JSON.stringify({ title: r.title, body: r.body }));
-        r.sent = true; sent++;
-      } catch (e) {
-        if (e.statusCode === 404 || e.statusCode === 410) { delete devices[endpoint]; break; }  // 訂閱已失效
-      }
+  for (const b of Object.values(db.bookings)) {
+    for (const r of remindersOf(b)) {
+      if (db.sent[r.id] || r.fireAt > now) continue;
+      db.sent[r.id] = now;
+      if (now - r.fireAt > 15 * 60000) continue;   // 晚超過 15 分鐘就不補發了
+      await pushAll(JSON.stringify({ title: r.title, body: r.body, tag: r.id }));
+      sent++;
     }
   }
-  if (sent) save();
+  prune(); save();
   return sent;
 }
 
-app.all('/tick', async (req, res) => {
-  if (TICK_TOKEN && req.query.token !== TICK_TOKEN) return res.status(403).json({ error: 'bad token' });
-  const sent = await tick();
-  res.json({ ok: true, sent });
-});
+app.all('/tick', auth, async (_req, res) => res.json({ ok: true, sent: await tick() }));
 
 // 保險：伺服器自己也每 60 秒跑一次（沒睡著時有效；睡著時靠外部 cron 戳醒）
 setInterval(() => tick().catch(() => {}), 60000);

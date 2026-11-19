@@ -29,15 +29,22 @@ body{
   max-width:520px; margin:0 auto; min-height:100vh;
   -webkit-tap-highlight-color:transparent;
 }
-header{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:16px}
+button{font-family:inherit}
+header{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:16px; gap:12px}
 h1{font-size:22px; margin:0; letter-spacing:.02em}
 .sub{font-size:13px; color:var(--mute); margin-top:4px}
-#refresh{
+.hdr-btns{display:flex; gap:8px; align-items:center}
+.pill{
   border:1px solid var(--line); background:var(--card); color:var(--ink);
-  border-radius:999px; height:40px; padding:0 14px; font-size:14px; font-family:inherit;
+  border-radius:999px; height:40px; padding:0 14px; font-size:14px;
 }
-#refresh:active{transform:scale(.97)}
-#refresh[disabled]{opacity:.5}
+.pill:active{transform:scale(.97)}
+.pill[disabled]{opacity:.5}
+#bell{position:relative; width:40px; padding:0; display:grid; place-items:center}
+#bell svg{width:20px; height:20px}
+.badge{position:absolute; top:-5px; right:-5px; min-width:19px; height:19px; padding:0 5px; border-radius:10px;
+  background:var(--full); color:#fff; font-size:11px; font-weight:700; display:grid; place-items:center}
+.badge[hidden]{display:none}
 .card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px 18px; margin-bottom:12px}
 .row{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
 .name{font-size:15px; color:var(--mute)}
@@ -45,7 +52,7 @@ h1{font-size:22px; margin:0; letter-spacing:.02em}
 .num small{font-size:15px; font-weight:500; color:var(--mute)}
 .bar{height:8px; border-radius:99px; background:var(--track); margin-top:12px; overflow:hidden}
 .bar i{display:block; height:100%; width:0; border-radius:99px; background:var(--ok); transition:width .5s ease}
-.note{font-size:13px; color:var(--mute); margin-top:8px}
+.note{font-size:13px; color:var(--mute); margin-top:6px; line-height:1.5}
 .tag{font-size:12px; padding:3px 9px; border-radius:99px; background:var(--track); color:var(--mute); white-space:nowrap}
 .tag.ok{color:var(--ok)} .tag.warn{color:var(--warn)} .tag.full{color:var(--full)}
 .err{color:var(--full)}
@@ -55,36 +62,57 @@ h2{font-size:15px; color:var(--mute); font-weight:600; margin:20px 4px 8px}
 .sp:last-child{border-bottom:0}
 .sp b{font-size:20px; font-variant-numeric:tabular-nums}
 .sp.zero{color:var(--mute)} .sp.zero b{font-weight:500}
-#remind{display:grid; gap:12px}
-#remind label{font-size:14px; color:var(--mute); display:grid; gap:4px}
-#remind input:not([type=checkbox]){font:inherit; font-size:16px; color:var(--ink); background:var(--bg);
-  border:1px solid var(--line); border-radius:10px; height:44px; padding:0 10px; width:100%; min-width:0}
-#remind .two{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-#remind .chk{display:flex; align-items:center; gap:8px; font-size:15px}
-#remind .chk label{display:inline; color:var(--ink); font-size:15px}
-#remind .chk input[type=checkbox]{width:22px; height:22px; accent-color:var(--brand)}
-#remind .chk input[type=number]{width:72px; text-align:center}
-#remind button{border:0; width:100%; font-family:inherit; margin-top:4px}
-.push-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
-.push-row b{font-size:15px}
-#push-box.on b{color:var(--ok)}
-#official-sync-box .sync-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
-#official-sync-box .sync-row b{font-size:15px}
-#bookings:empty::after{content:'還沒有提醒。'; color:var(--mute); font-size:14px}
-.bk{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border-bottom:1px solid var(--line)}
-.bk:last-child{border-bottom:0}
-.bk .t{font-size:15px} .bk .d{font-size:13px; color:var(--mute); margin-top:2px}
-.bk.past{opacity:.5}
-.bk button{border:0; background:none; color:var(--full); font:inherit; font-size:14px; padding:6px}
-#ics-link{color:var(--brand); margin-left:6px}
 .actions{margin-top:20px; display:grid; gap:10px}
 .btn{
-  display:flex; align-items:center; justify-content:center; text-decoration:none;
-  min-height:54px; border-radius:16px; font-size:17px; font-weight:600;
+  display:flex; align-items:center; justify-content:center; text-decoration:none; border:0;
+  min-height:54px; border-radius:16px; font-size:17px; font-weight:600; cursor:pointer;
 }
 .btn.primary{background:var(--brand); color:var(--brand-ink)}
 .btn.ghost{border:1px solid var(--line); color:var(--ink); background:var(--card); font-weight:500; font-size:15px; min-height:48px}
+.btn.small{min-height:40px; padding:0 14px; font-size:14px; white-space:nowrap; border-radius:12px}
 .btn:active{opacity:.85}
+.btn[disabled]{opacity:.5}
+
+/* 首頁的「下一則通知」卡片 */
+#next-card{display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; width:100%; text-align:left; font:inherit; color:inherit}
+#next-card b{font-size:15px}
+#next-card .go{color:var(--mute); font-size:20px}
+
+/* 通知總覽（全螢幕） */
+dialog{border:0; padding:0; color:var(--ink); background:var(--bg)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+#panel{width:100%; max-width:520px; height:100%; max-height:none; margin:0 auto}
+.sheet{padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 24px)}
+.sheet-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px}
+.sheet-head h2{margin:0; font-size:20px; color:var(--ink)}
+.split{display:flex; align-items:center; justify-content:space-between; gap:12px}
+.split b{font-size:15px}
+#push-box.on #push-state{color:var(--ok)}
+.nt{padding:14px 0; border-bottom:1px solid var(--line)}
+.nt:last-child{border-bottom:0}
+.nt .t{font-size:16px; font-weight:600}
+.nt .d{font-size:14px; color:var(--mute); margin-top:2px}
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+.chip{font-size:12px; padding:3px 9px; border-radius:99px; background:var(--track); color:var(--ink)}
+.chip.off{color:var(--mute)}
+.chip.done{color:var(--mute); text-decoration:line-through}
+.nt-btns{display:flex; gap:8px; margin-top:10px}
+.nt-btns button{flex:1}
+.link-danger{background:none; border:1px solid var(--line); color:var(--full); border-radius:12px; min-height:40px; font-size:14px}
+#list:empty::after{content:'目前沒有預約通知。預約成功後收到圖書館的通知信，會自動加進來。'; display:block; color:var(--mute); font-size:14px; padding:6px 0; line-height:1.6}
+
+/* 表單（編輯、預設值、通行碼） */
+.form{display:grid; gap:12px}
+.form label{font-size:14px; color:var(--mute); display:grid; gap:4px}
+.form input:not([type=checkbox]){font:inherit; font-size:16px; color:var(--ink); background:var(--bg);
+  border:1px solid var(--line); border-radius:10px; height:44px; padding:0 10px; width:100%; min-width:0}
+.form .two{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.chk{display:flex; align-items:center; gap:8px; font-size:15px; color:var(--ink)}
+.chk input[type=checkbox]{width:22px; height:22px; accent-color:var(--brand); margin:0}
+.chk input[type=number]{width:72px; text-align:center}
+.chk input[type=number]:disabled{opacity:.4}
+#editor{width:calc(100% - 32px); max-width:440px; border-radius:20px; background:var(--card)}
+#editor .sheet{padding:20px}
 footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; line-height:1.6}
 @media (prefers-reduced-motion:reduce){ .bar i{transition:none} }
 </style>
@@ -95,7 +123,14 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
     <h1>清大圖書館座位</h1>
     <div class="sub" id="updated">讀取中…</div>
   </div>
-  <button id="refresh" type="button">重新整理</button>
+  <div class="hdr-btns">
+    <button class="pill" id="bell" type="button" aria-label="通知總覽">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="badge" id="badge" hidden></span>
+    </button>
+    <button class="pill" id="refresh" type="button">重新整理</button>
+  </div>
 </header>
 
 <main id="cards"></main>
@@ -108,55 +143,76 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
   <a class="btn ghost" href="https://libsms.lib.nthu.edu.tw/build/" target="_blank" rel="noopener">開啟預約系統首頁</a>
 </div>
 
-<section class="card" id="official-sync-box">
-  <div class="sync-row">
-    <div><b>自動抓預約</b><div class="note" id="official-sync-status">還沒連結。預約完在預約系統點一下書籤即可。</div></div>
-    <button class="btn ghost" id="official-sync-btn" type="button" style="min-height:40px;padding:0 14px;white-space:nowrap">立即同步</button>
+<h2>預約通知</h2>
+<button class="card" id="next-card" type="button">
+  <div><b id="next-title">讀取中…</b><div class="note" id="next-sub"></div></div>
+  <span class="go" aria-hidden="true">›</span>
+</button>
+
+<footer>人數資料來自清大圖書館公開資訊，每分鐘自動更新。<br>預約通知由圖書館的預約確認信自動建立。<br>非官方工具，預約仍在圖書館官方系統完成。</footer>
+
+<!-- 通知總覽 -->
+<dialog id="panel">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>通知總覽</h2>
+      <button class="pill" id="panel-close" type="button">關閉</button>
+    </div>
+
+    <section class="card" id="token-box" hidden>
+      <form class="form" id="token-form">
+        <div><b>輸入通行碼</b><div class="note">就是你在 Render 設定的 TICK_TOKEN。只要輸入一次，會記在這支手機上。</div></div>
+        <input id="token-input" type="password" autocomplete="off" placeholder="通行碼" required>
+        <button class="btn primary small" type="submit">儲存</button>
+      </form>
+    </section>
+
+    <section class="card" id="push-box">
+      <div class="split">
+        <div><b id="push-state">手機推播：未開啟</b><div class="note" id="push-sub">開啟後，提醒時間一到會直接跳在手機上。</div></div>
+        <button class="btn ghost small" id="push-btn" type="button">開啟推播</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="split"><b>我的預約通知</b><span class="note" id="sync-status" style="margin:0"></span></div>
+      <div id="list"></div>
+    </section>
+
+    <section class="card">
+      <form class="form" id="defaults-form">
+        <div><b>自動加入時的預設提醒</b><div class="note">只套用在之後自動加入的預約；已經加入的可以個別編輯。</div></div>
+        <div class="chk"><input id="d-before-on" type="checkbox"><label for="d-before-on">開始前</label>
+          <input id="d-before" type="number" min="1" max="720" inputmode="numeric"><span>分鐘</span></div>
+        <div class="chk"><input id="d-after-on" type="checkbox"><label for="d-after-on">開始後</label>
+          <input id="d-after" type="number" min="1" max="720" inputmode="numeric"><span>分鐘（提醒刷卡）</span></div>
+        <button class="btn ghost small" type="submit" id="d-save">儲存預設值</button>
+      </form>
+    </section>
   </div>
-  <details class="note" id="bm-help">
-    <summary>設定書籤（只要做一次）</summary>
-    <ol style="padding-left:20px;margin:8px 0;line-height:1.7">
-      <li>按下面的「複製書籤」。</li>
-      <li>在 Chrome 隨便把一個網頁加入書籤，再編輯它：名稱改成 <b>抓預約</b>，網址整個換成剛剛複製的內容。</li>
-      <li>以後在圖書館預約系統預約完，點網址列輸入「抓預約」，點選出現的書籤。</li>
-    </ol>
-    <button class="btn ghost" id="bm-copy" type="button" style="min-height:40px;padding:0 14px;width:100%">複製書籤</button>
-    <textarea id="bm-code" readonly rows="3" style="width:100%;margin-top:8px;font-size:12px;color:var(--mute);background:var(--bg);border:1px solid var(--line);border-radius:8px"></textarea>
-  </details>
-</section>
+</dialog>
 
-<h2>預約提醒</h2>
-<div class="card" id="push-box">
-  <div class="push-row">
-    <div><b id="push-state">手機推播：未開啟</b><div class="note" id="push-sub">開啟後，提醒時間一到會直接跳在手機上。</div></div>
-    <button class="btn ghost" id="push-btn" type="button" style="min-height:40px;padding:0 14px;white-space:nowrap">開啟推播</button>
-  </div>
-</div>
-
-<form class="card" id="remind">
-  <label>空間
-    <input id="r-space" list="r-spaces" placeholder="例如：討論室" required>
-    <datalist id="r-spaces"></datalist>
-  </label>
-  <label>日期 <input id="r-date" type="date" required></label>
-  <div class="two">
-    <label>開始 <input id="r-start" type="time" required></label>
-    <label>結束 <input id="r-end" type="time" required></label>
-  </div>
-  <div class="chk"><input id="r-before-on" type="checkbox" checked>
-    <label for="r-before-on">開始前</label><input id="r-before" type="number" min="1" max="720" value="10" inputmode="numeric"><span>分鐘提醒</span></div>
-  <div class="chk"><input id="r-after-on" type="checkbox">
-    <label for="r-after-on">開始後</label><input id="r-after" type="number" min="1" max="720" value="5" inputmode="numeric"><span>分鐘提醒</span></div>
-  <button class="btn primary" type="submit">新增提醒</button>
-  <div class="note" id="r-msg">填入你的預約時間，按新增後會排進提醒清單。<a href="javascript:;" id="ics-link">改用行事曆檔</a></div>
-</form>
-
-<section class="card" id="booking-box" hidden>
-  <h3 style="margin:0 0 4px;font-size:15px">我的提醒</h3>
-  <div id="bookings"></div>
-</section>
-
-<footer>人數資料來自清大圖書館公開資訊，每分鐘自動更新。<br>非官方工具，預約仍在圖書館官方系統完成。</footer>
+<!-- 編輯單筆通知 -->
+<dialog id="editor">
+  <form class="sheet form" id="edit-form" method="dialog">
+    <b style="font-size:17px">編輯通知</b>
+    <label>空間 <input id="e-space" maxlength="60" required></label>
+    <label>日期 <input id="e-date" type="date" required></label>
+    <div class="two">
+      <label>開始 <input id="e-start" type="time" required></label>
+      <label>結束 <input id="e-end" type="time" required></label>
+    </div>
+    <div class="chk"><input id="e-before-on" type="checkbox"><label for="e-before-on">開始前</label>
+      <input id="e-before" type="number" min="1" max="720" inputmode="numeric"><span>分鐘提醒</span></div>
+    <div class="chk"><input id="e-after-on" type="checkbox"><label for="e-after-on">開始後</label>
+      <input id="e-after" type="number" min="1" max="720" inputmode="numeric"><span>分鐘提醒</span></div>
+    <div class="note err" id="e-msg"></div>
+    <div class="two">
+      <button class="btn ghost small" type="button" id="e-cancel">取消</button>
+      <button class="btn primary small" type="submit">儲存</button>
+    </div>
+  </form>
+</dialog>
 
 <script>
 const SOURCES = [
@@ -269,288 +325,254 @@ SOURCES.forEach(s=>{ const el=document.createElement('section'); el.className='c
 if(state.spaces) renderSpaces(state.spaces);
 
 btn.addEventListener('click', load);
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) load(); });
 setInterval(()=>{ if(!document.hidden) load(); }, 60000);
 load();
 
-// ---- 預約提醒：產生帶提醒的行事曆檔 (.ics) ----
+// =====================================================================
+// 預約通知：預約由「圖書館預約確認信 → Apps Script → 後端」自動加入，
+// 這裡只負責查看、編輯、刪除，以及推播開關。
+// =====================================================================
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2,'0');
-const SET_KEY = 'nthu-lib-remind';
-(function initRemind(){
-  $('r-spaces').innerHTML = ['研究小間','討論室','聆賞席','人社分館討論室','簡報練習室','團體室','享時小間','夜讀區',
-    '電腦共學區及語言學習區','人社分館享時小間'].map(n=>`<option value="${n}">`).join('');
-  const d = new Date();
-  $('r-date').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  try{ const s = JSON.parse(localStorage.getItem(SET_KEY)) || {};
-    if(s.space) $('r-space').value = s.space;
-    if(s.before) $('r-before').value = s.before;
-    if(s.after) $('r-after').value = s.after;
-    if('beforeOn' in s) $('r-before-on').checked = s.beforeOn;
-    if('afterOn' in s) $('r-after-on').checked = s.afterOn;
-  }catch(e){}
-})();
+let PUSH_API = 'https://nthu-lib-push.onrender.com';   // 你的 Render 後端（結尾不要加斜線）
+try{ PUSH_API = localStorage.getItem('nthu-lib-api') || PUSH_API; }catch(e){}   // 本機測試時可覆寫
 
-function icsEscape(s){ return String(s).replace(/([\\;,])/g,'\\$1').replace(/\r?\n/g,'\\n'); }
-function icsUTC(d){ return `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`; }
+const TOKEN_KEY = 'nthu-lib-token', CACHE_KEY = 'nthu-lib-notify', OLD_KEYS = ['nthu-lib-bookings','nthu-lib-remind','nthu-lib-official','nthu-lib-booking-at'];
+const lsGet = (k, d) => { try{ const v = JSON.parse(localStorage.getItem(k)); return v ?? d; }catch(e){ return d; } };
+const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+try{ OLD_KEYS.forEach(k=>localStorage.removeItem(k)); }catch(e){}   // 清掉舊版手動提醒的資料
 
-function buildICS({space, start, end, before, after}){
-  const alarm = (trigger, text) => ['BEGIN:VALARM','ACTION:DISPLAY',`DESCRIPTION:${icsEscape(text)}`,`TRIGGER:${trigger}`,'END:VALARM'];
-  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//nthu-lib//reminder//ZH','CALSCALE:GREGORIAN','METHOD:PUBLISH',
-    'BEGIN:VEVENT',`UID:${Date.now()}-${Math.random().toString(36).slice(2)}@nthu-lib`,`DTSTAMP:${icsUTC(new Date())}`,
-    `DTSTART:${icsUTC(start)}`,`DTEND:${icsUTC(end)}`,`SUMMARY:${icsEscape('圖書館預約：'+space)}`,
-    `LOCATION:${icsEscape('清華大學圖書館')}`,`DESCRIPTION:${icsEscape('記得在時段內刷卡啟用。')}`];
-  if(before) lines.push(...alarm(`-PT${before}M`, `${space} 預約 ${before} 分鐘後開始`));
-  if(after)  lines.push(...alarm(`PT${after}M`,  `${space} 預約已開始 ${after} 分鐘，記得刷卡啟用`));
-  lines.push('END:VEVENT','END:VCALENDAR');
-  return lines.join('\r\n') + '\r\n';
-}
+let token = lsGet(TOKEN_KEY, '');
+let { bookings = [], settings = { before:10, after:5, updatedAt:0 }, syncedAt = 0 } = lsGet(CACHE_KEY, {});
+const saveCache = () => lsSet(CACHE_KEY, { bookings, settings, syncedAt });
 
-// === 推播後端網址：部署到 Render 後，把下面換成你的網址（結尾不要加斜線）===
-const PUSH_API = 'https://nthu-lib-push.onrender.com';   // 你的 Render 後端
-// 官方預約系統的 API（登入由你自己在官方頁面完成，這裡只用書籤帶回來的 sid / authid 查預約）
-const OFFICIAL_API = 'https://libsms.lib.nthu.edu.tw/RWDAPI_New';
-const OFF_KEY = 'nthu-lib-official';
-
-// ---- 讀表單、驗證，回傳一筆預約或 null ----
-function readForm(){
-  const msg = $('r-msg'); msg.classList.remove('err');
-  const fail = t => { msg.textContent = t; msg.classList.add('err'); return null; };
-  const space = $('r-space').value.trim();
-  if(!space) return fail('請填空間名稱。');
-  const start = new Date(`${$('r-date').value}T${$('r-start').value}`);
-  let end = new Date(`${$('r-date').value}T${$('r-end').value}`);
-  if(isNaN(start) || isNaN(end)) return fail('請填好日期與時間。');
-  if(end <= start) end = new Date(end.getTime() + 864e5);   // 跨夜（例如夜讀區）
-  const before = $('r-before-on').checked ? parseInt($('r-before').value,10) : 0;
-  const after  = $('r-after-on').checked  ? parseInt($('r-after').value,10)  : 0;
-  if(($('r-before-on').checked && !(before>0)) || ($('r-after-on').checked && !(after>0))) return fail('提醒的分鐘數請填大於 0 的數字。');
-  if(!before && !after) return fail('請至少勾選一個提醒。');
-  try{ localStorage.setItem(SET_KEY, JSON.stringify({space, before:$('r-before').value, after:$('r-after').value,
-    beforeOn:$('r-before-on').checked, afterOn:$('r-after-on').checked})); }catch(e){}
-  return { id:'bk'+Date.now(), space, start:start.toISOString(), end:end.toISOString(), before, after };
-}
-
-// ---- 我的提醒清單（存在手機裡）----
-const BOOK_KEY = 'nthu-lib-bookings';
-let bookings = [];
-try{ bookings = JSON.parse(localStorage.getItem(BOOK_KEY)) || []; }catch(e){}
-function saveBookings(){ try{ localStorage.setItem(BOOK_KEY, JSON.stringify(bookings)); }catch(e){} }
-const fmtDate = iso => { const d=new Date(iso);
-  return `${d.getMonth()+1}/${d.getDate()}（${'日一二三四五六'[d.getDay()]}）${pad(d.getHours())}:${pad(d.getMinutes())}`; };
-
-function renderBookings(){
-  bookings.sort((a,b)=>new Date(a.start)-new Date(b.start));
-  $('booking-box').hidden = bookings.length===0;
-  $('bookings').innerHTML = bookings.map(b=>{
-    const past = new Date(b.start).getTime() + (b.after||0)*60000 < Date.now();
-    const parts = [b.before?`前 ${b.before} 分`:null, b.after?`後 ${b.after} 分`:null].filter(Boolean).join('、');
-    const action = b.source==='official' ? '<span class="tag">官方</span>'
-      : `<button type="button" data-del="${b.id}">刪除</button>`;
-    return `<div class="bk${past?' past':''}"><div><div class="t">${esc(b.space)}</div>
-      <div class="d">${fmtDate(b.start)}｜提醒：${parts||'無'}</div></div>${action}</div>`;
-  }).join('');
-}
-
-function cleanExpiredBookings(){
-  const cutoff = Date.now() - 24 * 3600 * 1000;
-  const before = bookings.length;
-  bookings = bookings.filter(b => new Date(b.end || b.start).getTime() >= cutoff);
-  if(bookings.length !== before) saveBookings();
-  return bookings.length !== before;
-}
-
-// ---- 官方預約自動同步 ----
-// 書籤在官方預約頁讀出 sid / authid，帶到 #lib=... 回到這個 app。
-let official = null;   // { sid, authid, expired, t }
-try{ official = JSON.parse(localStorage.getItem(OFF_KEY)); }catch(e){}
-function saveOfficial(){ try{ localStorage.setItem(OFF_KEY, JSON.stringify(official)); }catch(e){} }
-(function importFromHash(){
-  const m = location.hash.match(/^#lib=(.+)$/); if(!m) return;
-  history.replaceState(null, '', location.pathname + location.search);   // 立刻把代碼從網址拿掉
+// ---- 和後端溝通 ----
+async function api(path, body){
+  const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 60000);   // Render 睡著時要等它醒
   try{
-    const [sid, authid] = JSON.parse(decodeURIComponent(m[1]));
-    if(typeof sid==='string' && typeof authid==='string' && sid && authid){
-      official = { sid, authid, expired:false, t:Date.now() }; saveOfficial();
-    }
-  }catch(e){}
-})();
-
-// 使用者在表單設定的提醒分鐘數，也套用到官方預約
-function reminderDefaults(){
-  let s = {}; try{ s = JSON.parse(localStorage.getItem(SET_KEY)) || {}; }catch(e){}
-  const before = s.beforeOn===false ? 0 : (parseInt(s.before,10) || 10);
-  const after  = s.afterOn ? (parseInt(s.after,10) || 5) : 0;
-  return { before, after };
+    const r = await fetch(PUSH_API + path, { method: body ? 'POST' : 'GET', signal: ctl.signal,
+      headers: { ...(body ? {'Content-Type':'application/json'} : {}), 'X-Token': token || '' },
+      body: body ? JSON.stringify(body) : undefined });
+    if(r.status === 401){ $('token-box').hidden = false; throw new Error('需要通行碼'); }
+    if(!r.ok) throw new Error(`後端回應 ${r.status}`);
+    return await r.json();
+  }finally{ clearTimeout(t); }
 }
 
-// bookedatetime 例：「20261119 14:00:00~16:00:00」，一律視為台灣時間
-function parseOfficialTime(s){
-  const m = String(s||'').match(/(\d{4})\D?(\d{2})\D?(\d{2})\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*~\s*(\d{1,2}):(\d{2})/);
-  if(!m) return null;
-  const day = `${m[1]}-${m[2]}-${m[3]}`;
-  const start = new Date(`${day}T${pad(m[4])}:${m[5]}:00+08:00`);
-  let end = new Date(`${day}T${pad(m[6])}:${m[7]}:00+08:00`);
-  if(isNaN(start) || isNaN(end)) return null;
-  if(end <= start) end = new Date(end.getTime() + 864e5);
-  return { start, end };
-}
-function officialToBookings(rows){
-  const { before, after } = reminderDefaults();
-  return (rows||[]).map(r=>{
-    const t = parseOfficialTime(r.bookedatetime); if(!t || !r.bookid) return null;
-    const space = [r.zonename || r.spacetypename, r.devname].filter(Boolean).join(' ') || '圖書館預約';
-    return { id:`official:${r.bookid}`, source:'official', space,
-      start:t.start.toISOString(), end:t.end.toISOString(), before, after };
-  }).filter(b => b && new Date(b.end).getTime() > Date.now());
+// 把這支手機上的編輯送出，同時拿回後端最新的完整清單（Apps Script 新加的也會一起回來）
+let syncing = null;
+function sync(){
+  if(!syncing) syncing = (async ()=>{
+    $('sync-status').textContent = '同步中…'; $('sync-status').classList.remove('err');
+    try{
+      const res = await api('/bookings', { bookings, settings });
+      bookings = res.bookings || []; settings = res.settings || settings; syncedAt = Date.now();
+      saveCache(); renderAll();
+      $('sync-status').textContent = `已同步 ${hm(syncedAt)}`;
+    }catch(e){
+      $('sync-status').textContent = e.name==='AbortError' ? '後端沒有回應' : (e.message || '同步失敗');
+      $('sync-status').classList.add('err');
+    }finally{ syncing = null; }
+  })();
+  return syncing;
 }
 
-function setOfficialStatus(text, isErr){
-  const el = $('official-sync-status'); el.textContent = text; el.classList.toggle('err', !!isErr);
-}
-async function syncOfficialBookings(){
-  if(!official){ setOfficialStatus('還沒連結。預約完在預約系統點一下書籤即可。'); return false; }
-  if(official.expired){ setOfficialStatus('官方登入已過期。下次預約完再點一次書籤就會恢復。'); return false; }
-  const button = $('official-sync-btn'); button.disabled = true;
-  setOfficialStatus('同步中…');
-  try{
-    const q = new URLSearchParams({ sid:official.sid, authid:official.authid, restype:'json' });
-    const ctl = new AbortController(); const timer = setTimeout(()=>ctl.abort(), 12000);
-    const r = await fetch(`${OFFICIAL_API}/GetBookInfo.aspx?${q}`, { cache:'no-store', signal:ctl.signal });
-    clearTimeout(timer);
-    if(!r.ok) throw new Error(`官方系統回應 ${r.status}`);
-    const res = (await r.json())[0] || {};
-    if(res.rescode==='3' || res.rescode==='4'){
-      official.expired = true; saveOfficial();
-      setOfficialStatus('官方登入已過期。已排好的通知不受影響；下次預約完再點一次書籤。');
-      return false;
-    }
-    if(res.rescode!=='1') throw new Error(res.resmsg || '官方系統回傳錯誤');
-    const list = officialToBookings(res.resdata);
-    bookings = [...bookings.filter(b => b.source !== 'official'), ...list];
-    saveBookings(); renderBookings(); await syncReminders();
-    setOfficialStatus(`已同步 ${list.length} 筆預約（${hm(Date.now())}）。後端會持續自動檢查。`);
-    return true;
-  }catch(e){
-    setOfficialStatus(`同步失敗：${e.name==='AbortError' ? '官方系統沒有回應' : (e.message || e)}`, true);
-    return false;
-  }finally{ button.disabled = false; }
-}
+// ---- 顯示 ----
+const WEEK = '日一二三四五六';
+const fmtDay = d => `${d.getMonth()+1}/${d.getDate()}（${WEEK[d.getDay()]}）`;
+const fmtHM = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const active = () => bookings.filter(b => !b.deleted && new Date(b.end).getTime() > Date.now())
+  .sort((a,b) => new Date(a.start) - new Date(b.start));
 
-// 書籤程式碼：在官方預約頁執行，把登入代碼帶回這個 app
-(function initBookmarklet(){
-  const app = location.origin + location.pathname;
-  const code = "javascript:(function(){var s=sessionStorage.getItem('sid'),a=sessionStorage.getItem('authid');"
-    + "if(!s||!a){alert('請先在這個分頁登入圖書館預約系統');return;}"
-    + `location.href='${app}#lib='+encodeURIComponent(JSON.stringify([s,a]));})()`;
-  $('bm-code').value = code;
-  $('bm-copy').addEventListener('click', async ()=>{
-    try{ await navigator.clipboard.writeText(code); $('bm-copy').textContent = '已複製 ✓'; }
-    catch(e){ $('bm-code').select(); $('bm-copy').textContent = '請長按下方文字手動複製'; }
-  });
-  if(!official) $('bm-help').open = true;
-})();
-
-$('bookings').addEventListener('click', e=>{
-  const id = e.target.getAttribute('data-del'); if(!id) return;
-  bookings = bookings.filter(b=>b.id!==id); saveBookings(); renderBookings(); syncReminders();
-});
-
-// ---- 把清單換算成提醒時間，送到後端 ----
-function remindersFromBookings(){
-  const out = [];
-  for(const b of bookings){
-    const start = new Date(b.start);
-    if(b.before) out.push({ id:b.id+'-b', fireAt:new Date(start.getTime()-b.before*60000).toISOString(),
-      title:'圖書館預約即將開始', body:`${b.space}　${b.before} 分鐘後（${pad(start.getHours())}:${pad(start.getMinutes())}）開始` });
-    if(b.after) out.push({ id:b.id+'-a', fireAt:new Date(start.getTime()+b.after*60000).toISOString(),
-      title:'記得刷卡啟用', body:`${b.space} 預約已開始 ${b.after} 分鐘，請於時段內刷卡啟用` });
-  }
+function remindersOf(b){
+  const s = new Date(b.start).getTime(), out = [];
+  if(b.before) out.push({ at: s - b.before*60000, label:`開始前 ${b.before} 分` });
+  if(b.after)  out.push({ at: s + b.after*60000,  label:`開始後 ${b.after} 分` });
   return out;
 }
-let pushSub = null;
-async function syncReminders(){
-  if(!PUSH_API || !pushSub) return;
-  try{
-    await fetch(PUSH_API+'/sync', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ subscription: pushSub, reminders: remindersFromBookings(),
-        // 讓後端之後自己定期查官方預約（登入過期就停）
-        official: official && !official.expired ? { sid:official.sid, authid:official.authid, ...reminderDefaults() } : null }) });
-  }catch(e){ console.error('sync failed', e); }
+
+function renderAll(){
+  const list = active();
+  const now = Date.now();
+  const upcoming = list.flatMap(b => remindersOf(b).filter(r => r.at > now).map(r => ({ ...r, b })))
+    .sort((x,y) => x.at - y.at);
+
+  // 鈴鐺上的數字：還沒響的通知數
+  $('badge').hidden = !upcoming.length;
+  $('badge').textContent = upcoming.length > 9 ? '9+' : upcoming.length;
+
+  // 首頁卡片：下一則通知
+  if(upcoming.length){
+    const n = upcoming[0], at = new Date(n.at);
+    $('next-title').textContent = `下一則：${fmtDay(at)} ${fmtHM(at)}`;
+    $('next-sub').textContent = `${n.b.space}・${n.label}　共 ${upcoming.length} 則待通知`;
+  }else{
+    $('next-title').textContent = '目前沒有待發的通知';
+    $('next-sub').textContent = '預約成功後收到圖書館通知信，會自動加進來。';
+  }
+
+  // 總覽清單
+  $('list').innerHTML = list.map(b=>{
+    const s = new Date(b.start), e = new Date(b.end);
+    const chips = remindersOf(b).map(r =>
+      `<span class="chip${r.at <= now ? ' done' : ''}">${r.label}・${fmtHM(new Date(r.at))}</span>`).join('')
+      || '<span class="chip off">不通知</span>';
+    return `<div class="nt">
+      <div class="t">${esc(b.space)}</div>
+      <div class="d">${fmtDay(s)} ${fmtHM(s)}–${fmtHM(e)}${b.source==='mail' ? '・來自預約信' : ''}</div>
+      <div class="chips">${chips}</div>
+      <div class="nt-btns">
+        <button class="btn ghost small" type="button" data-edit="${esc(b.id)}">編輯</button>
+        <button class="link-danger" type="button" data-del="${esc(b.id)}">刪除</button>
+      </div></div>`;
+  }).join('');
+
+  // 預設值表單（正在編輯時不要蓋掉）
+  if(!$('defaults-form').contains(document.activeElement)){
+    fillToggle('d-before', settings.before, 10);
+    fillToggle('d-after', settings.after, 5);
+  }
 }
 
-$('remind').addEventListener('submit', ev=>{
-  ev.preventDefault();
-  const b = readForm(); if(!b) return;
-  bookings.push(b); saveBookings(); renderBookings(); syncReminders();
-  $('r-msg').classList.remove('err');
-  $('r-msg').innerHTML = (PUSH_API && pushSub) ? '已加入，時間到會推播通知你。'
-    : '已加入清單。<a href="javascript:;" id="ics-link2">開啟推播</a>後才會真的通知你。';
-  const l2 = document.getElementById('ics-link2'); if(l2) l2.onclick = enablePush;
+// 「開始前 / 開始後」：勾選框 + 分鐘數。0 代表不通知
+function fillToggle(prefix, val, fallback){
+  $(prefix+'-on').checked = val > 0;
+  $(prefix).value = val > 0 ? val : fallback;
+  $(prefix).disabled = !(val > 0);
+}
+function readToggle(prefix){
+  if(!$(prefix+'-on').checked) return 0;
+  const v = parseInt($(prefix).value, 10);
+  return v > 0 && v <= 720 ? v : NaN;
+}
+['d-before','d-after','e-before','e-after'].forEach(p =>
+  $(p+'-on').addEventListener('change', ()=>{ $(p).disabled = !$(p+'-on').checked; }));
+
+// ---- 總覽面板 ----
+function openPanel(){ renderAll(); if(!$('panel').open) $('panel').showModal(); sync(); }
+$('bell').addEventListener('click', openPanel);
+$('next-card').addEventListener('click', openPanel);
+$('panel-close').addEventListener('click', ()=>$('panel').close());
+
+function update(id, patch){
+  bookings = bookings.map(b => b.id === id ? { ...b, ...patch, updatedAt: Date.now() } : b);
+  saveCache(); renderAll(); sync();
+}
+
+$('list').addEventListener('click', e=>{
+  const del = e.target.closest('[data-del]'), edit = e.target.closest('[data-edit]');
+  if(del){
+    const b = bookings.find(x => x.id === del.dataset.del); if(!b) return;
+    if(confirm(`刪除「${b.space}」${fmtDay(new Date(b.start))}的通知？\n（只刪通知，不會取消圖書館的預約）`))
+      update(b.id, { deleted:true });
+  }
+  if(edit) openEditor(edit.dataset.edit);
 });
 
-$('official-sync-btn').addEventListener('click', syncOfficialBookings);
+// ---- 編輯單筆 ----
+let editingId = null;
+function openEditor(id){
+  const b = bookings.find(x => x.id === id); if(!b) return;
+  editingId = id;
+  const s = new Date(b.start), e = new Date(b.end);
+  $('e-space').value = b.space;
+  $('e-date').value = `${s.getFullYear()}-${pad(s.getMonth()+1)}-${pad(s.getDate())}`;
+  $('e-start').value = fmtHM(s); $('e-end').value = fmtHM(e);
+  fillToggle('e-before', b.before, settings.before || 10);
+  fillToggle('e-after', b.after, settings.after || 5);
+  $('e-msg').textContent = '';
+  $('editor').showModal();
+}
+$('e-cancel').addEventListener('click', ()=>$('editor').close());
+$('edit-form').addEventListener('submit', ev=>{
+  ev.preventDefault();
+  const fail = t => { $('e-msg').textContent = t; };
+  const space = $('e-space').value.trim();
+  const start = new Date(`${$('e-date').value}T${$('e-start').value}`);
+  let end = new Date(`${$('e-date').value}T${$('e-end').value}`);
+  if(!space) return fail('請填空間名稱。');
+  if(isNaN(start) || isNaN(end)) return fail('請填好日期與時間。');
+  if(end <= start) end = new Date(end.getTime() + 864e5);   // 跨夜
+  const before = readToggle('e-before'), after = readToggle('e-after');
+  if(isNaN(before) || isNaN(after)) return fail('分鐘數請填 1～720。');
+  update(editingId, { space, start:start.toISOString(), end:end.toISOString(), before, after });
+  $('editor').close();
+});
 
-// 保留行事曆檔作為備用
-$('r-msg').addEventListener('click', e=>{
-  if(e.target.id!=='ics-link') return;
-  const b = readForm(); if(!b) return;
-  const file = new File([buildICS({space:b.space,start:new Date(b.start),end:new Date(b.end),before:b.before,after:b.after})],
-    'library-booking.ics', {type:'text/calendar'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+// ---- 預設值 ----
+$('defaults-form').addEventListener('submit', ev=>{
+  ev.preventDefault();
+  const before = readToggle('d-before'), after = readToggle('d-after');
+  if(isNaN(before) || isNaN(after)){ $('d-save').textContent = '分鐘數請填 1～720'; return; }
+  settings = { before, after, updatedAt: Date.now() };
+  saveCache(); sync().then(()=>{ $('d-save').textContent = '已儲存 ✓'; setTimeout(()=>$('d-save').textContent='儲存預設值', 2000); });
+  document.activeElement.blur();
+});
+
+// ---- 通行碼 ----
+$('token-form').addEventListener('submit', async ev=>{
+  ev.preventDefault();
+  token = $('token-input').value.trim(); lsSet(TOKEN_KEY, token);
+  $('token-box').hidden = true; $('token-input').value = '';
+  await registerPush(); await sync();
 });
 
 // ---- 推播 ----
+let pushSub = null;
 function b64ToUint8(s){ const p='='.repeat((4-s.length%4)%4); const b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));
   return Uint8Array.from([...b].map(c=>c.charCodeAt(0))); }
 
 async function refreshPushState(){
-  const box=$('push-box'), st=$('push-state'), sub=$('push-sub'), btn=$('push-btn');
+  const box=$('push-box'), st=$('push-state'), sub=$('push-sub'), b=$('push-btn');
   if(!('serviceWorker' in navigator) || !('PushManager' in window)){
-    st.textContent='此瀏覽器不支援推播'; sub.textContent='請用 Chrome 開啟，並把 app 加到主畫面。'; btn.hidden=true; return; }
-  if(!PUSH_API){ st.textContent='手機推播：尚未設定後端'; sub.textContent='部署 Render 後端並填入網址後即可開啟。'; btn.hidden=true; return; }
+    st.textContent='此瀏覽器不支援推播'; sub.textContent='請把 app 加到主畫面後再開啟。'; b.hidden=true; return; }
   const reg = await navigator.serviceWorker.ready;
   pushSub = await reg.pushManager.getSubscription();
-  if(pushSub && Notification.permission==='granted'){
-    box.classList.add('on'); st.textContent='手機推播：已開啟'; sub.textContent='提醒會直接跳在手機上。'; btn.textContent='發送測試';
-  }else{
-    box.classList.remove('on'); st.textContent='手機推播：未開啟'; sub.textContent='開啟後，提醒時間一到會直接跳在手機上。'; btn.textContent='開啟推播';
-  }
+  const on = pushSub && Notification.permission==='granted';
+  box.classList.toggle('on', !!on);
+  st.textContent = on ? '手機推播：已開啟' : '手機推播：未開啟';
+  sub.textContent = on ? '通知時間一到會直接跳在手機上。' : '開啟後，通知時間一到會直接跳在手機上。';
+  b.textContent = on ? '發送測試' : '開啟推播';
+}
+// 把訂閱交給後端（每次開 app 都送一次，後端重啟也能補回來）
+async function registerPush(){
+  if(!pushSub) return;
+  try{ await api('/subscribe', { subscription: pushSub }); }catch(e){ console.error('subscribe failed', e); }
 }
 async function enablePush(){
-  if(!PUSH_API){ $('push-sub').textContent='還沒設定後端網址。'; return; }
-  const btn=$('push-btn'); btn.disabled=true;
+  const b=$('push-btn'); b.disabled=true;
   try{
     const perm = await Notification.requestPermission();
     if(perm!=='granted'){ $('push-sub').textContent='你拒絕了通知權限，請到瀏覽器設定裡允許。'; return; }
     const reg = await navigator.serviceWorker.ready;
     const { key } = await (await fetch(PUSH_API+'/vapid')).json();
     pushSub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:b64ToUint8(key) });
-    await syncReminders();
+    await registerPush();
     await refreshPushState();
-  }catch(e){ $('push-sub').textContent='開啟失敗：'+(e.message||e); $('push-sub').parentElement.parentElement; console.error(e); }
-  finally{ btn.disabled=false; }
+  }catch(e){ $('push-sub').textContent='開啟失敗：'+(e.message||e); console.error(e); }
+  finally{ b.disabled=false; }
 }
 $('push-btn').addEventListener('click', async ()=>{
-  if(pushSub && Notification.permission==='granted'){   // 已開啟 → 發測試
+  if(pushSub && Notification.permission==='granted'){
     $('push-sub').textContent='測試推播已送出，稍等幾秒…';
-    try{ await fetch(PUSH_API+'/test', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ subscription: pushSub }) }); }catch(e){ $('push-sub').textContent='測試失敗：'+e.message; }
+    try{ await api('/test', { subscription: pushSub }); }catch(e){ $('push-sub').textContent='測試失敗：'+e.message; }
   }else enablePush();
 });
 
-cleanExpiredBookings();
-renderBookings();
+// ---- 啟動 ----
+renderAll();   // 先用手機裡的快取顯示
+setInterval(renderAll, 30000);   // 讓「下一則」和數字跟著時間更新
+let lastSync = 0;
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) return;
+  load();
+  if(Date.now() - lastSync > 30000){ lastSync = Date.now(); sync(); }
+});
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js')
-    .then(()=>refreshPushState())
-    .catch(()=>{})
-    .then(async ()=>{
-      // 能同步官方預約就順便送出提醒；否則只把現有清單送到後端
-      if(!(await syncOfficialBookings())) await syncReminders();
-    });
-}else syncOfficialBookings();
+    .then(()=>refreshPushState()).then(registerPush).catch(()=>{})
+    .then(()=>{ lastSync = Date.now(); return sync(); });
+}else sync();
 </script>
 </body>
 </html>

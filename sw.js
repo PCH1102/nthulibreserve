@@ -1,5 +1,5 @@
 // app 外殼快取 + 接收推播
-const CACHE = 'nthu-lib-v5';
+const CACHE = 'nthu-lib-v6';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
