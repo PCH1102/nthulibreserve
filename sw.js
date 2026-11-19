@@ -1,5 +1,5 @@
 // app 外殼快取 + 接收推播
-const CACHE = 'nthu-lib-v6';
+const CACHE = 'nthu-lib-v7';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -27,20 +27,38 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// 收到推播 → 顯示通知
+// 收到推播 → 顯示通知（預約提醒會一直留在畫面上直到你按掉）
 self.addEventListener('push', e => {
   let d = { title: '圖書館提醒', body: '' };
   try { if (e.data) d = e.data.json(); } catch (_) { if (e.data) d.body = e.data.text(); }
   const opts = { body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', vibrate: [100, 50, 100] };
   if (d.tag) { opts.tag = d.tag; opts.renotify = true; }   // renotify 一定要搭配 tag，否則通知會被擋
-  e.waitUntil(self.registration.showNotification(d.title || '圖書館提醒', opts));
+  if (d.alert) {
+    opts.data = { alert: d.alert };
+    opts.requireInteraction = true;
+    opts.vibrate = [400, 150, 400, 150, 400, 150, 800];
+  }
+  e.waitUntil(Promise.all([
+    self.registration.showNotification(d.title || '圖書館提醒', opts),
+    // app 正開著的話，直接跳出全螢幕提醒
+    d.alert && clients.matchAll({ type: 'window' }).then(list =>
+      list.filter(c => c.visibilityState === 'visible').forEach(c => c.postMessage({ type: 'alert', alert: d.alert }))),
+  ]));
 });
 
-// 點通知 → 打開 app
+// 點通知 → 打開 app 並顯示全螢幕提醒
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-    for (const c of list) { if ('focus' in c) return c.focus(); }
-    if (clients.openWindow) return clients.openWindow('./');
+  const alert = e.notification.data && e.notification.data.alert;
+  const url = alert ? './?alert=' + encodeURIComponent(JSON.stringify(alert)) : './';
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async list => {
+    for (const c of list) {
+      if ('focus' in c) {
+        await c.focus();
+        if (alert) c.postMessage({ type: 'alert', alert });
+        return;
+      }
+    }
+    if (clients.openWindow) return clients.openWindow(url);
   }));
 });

@@ -1,7 +1,7 @@
 // 清大圖書館座位 — 個人推播後端
 // 預約來源：Google Apps Script 讀到圖書館「預約通知函」後送進來（/mail-bookings）
 // webapp 可以查看、編輯、刪除每筆預約的通知（/bookings）
-// 後端依每筆預約的「開始前 / 開始後幾分鐘」算出提醒時間，時間到發 Web Push。
+// 每筆預約可以有多則提醒（開始前 / 開始後幾分鐘 / 指定日期時間），時間到發 Web Push。
 
 import express from 'express';
 import webpush from 'web-push';
@@ -38,8 +38,28 @@ function save() {
 }
 
 // ---- 工具 ----
-const clampMin = v => Math.max(0, Math.min(720, parseInt(v, 10) || 0));
+const clampMin = v => Math.max(0, Math.min(1440, parseInt(v, 10) || 0));
 const hmTW = d => new Date(d).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false });
+const dayTW = d => new Date(d).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei', month: 'numeric', day: 'numeric' });
+
+// 提醒清單：{kind:'before', min} 開始前 / {kind:'after', min} 開始後 / {kind:'at', at} 指定日期時間
+// 舊格式（before / after 兩個數字）會自動轉換
+function cleanReminders(b) {
+  const list = Array.isArray(b.reminders) ? b.reminders : [
+    ...(clampMin(b.before) ? [{ kind: 'before', min: b.before }] : []),
+    ...(clampMin(b.after) ? [{ kind: 'after', min: b.after }] : []),
+  ];
+  const out = [], seen = new Set();
+  for (const r of list.slice(0, 10)) {
+    let c = null;
+    if (r && (r.kind === 'before' || r.kind === 'after')) c = { kind: r.kind, min: clampMin(r.min) };
+    else if (r && r.kind === 'at' && !isNaN(Date.parse(r.at))) c = { kind: 'at', at: new Date(Date.parse(r.at)).toISOString() };
+    if (!c) continue;
+    const key = JSON.stringify(c);
+    if (!seen.has(key)) { seen.add(key); out.push(c); }
+  }
+  return out;
+}
 
 function cleanBooking(b) {
   if (!b || typeof b.id !== 'string' || !b.id) return null;
@@ -51,8 +71,7 @@ function cleanBooking(b) {
     space: String(b.space || '圖書館預約').slice(0, 60),
     start: new Date(start).toISOString(),
     end: new Date(end).toISOString(),
-    before: clampMin(b.before),
-    after: clampMin(b.after),
+    reminders: cleanReminders(b),
     deleted: !!b.deleted,
     updatedAt: Number(b.updatedAt) || 0,
   };
@@ -62,18 +81,21 @@ function cleanBooking(b) {
 function remindersOf(b) {
   if (b.deleted) return [];
   const start = Date.parse(b.start);
-  const out = [];
-  if (b.before) {
-    const t = start - b.before * 60000;
-    out.push({ id: `${b.id}|b|${t}`, fireAt: t, title: '圖書館預約即將開始',
-      body: `${b.space}　${b.before} 分鐘後（${hmTW(start)}）開始` });
-  }
-  if (b.after) {
-    const t = start + b.after * 60000;
-    out.push({ id: `${b.id}|a|${t}`, fireAt: t, title: '⚠️ 記得刷卡報到',
-      body: `${b.space} 已開始 ${b.after} 分鐘，還沒刷卡請立刻去報到` });
-  }
-  return out;
+  const when = `${dayTW(start)} ${hmTW(start)}`;
+  return (b.reminders || []).map(r => {
+    if (r.kind === 'before') {
+      const t = start - r.min * 60000;
+      return { id: `${b.id}|b|${t}`, fireAt: t, title: r.min ? '圖書館預約即將開始' : '圖書館預約現在開始',
+        body: r.min ? `${b.space}　${r.min} 分鐘後（${hmTW(start)}）開始` : `${b.space}　${hmTW(start)} 開始，記得刷卡報到` };
+    }
+    if (r.kind === 'after') {
+      const t = start + r.min * 60000;
+      return { id: `${b.id}|a|${t}`, fireAt: t, title: '⚠️ 記得刷卡報到',
+        body: `${b.space} 已開始 ${r.min} 分鐘，還沒刷卡請立刻去報到` };
+    }
+    const t = Date.parse(r.at);
+    return { id: `${b.id}|t|${t}`, fireAt: t, title: '圖書館預約提醒', body: `${b.space}　${when} 開始` };
+  });
 }
 
 // 剛加入或剛改過的預約：已經過去的提醒不要補發
@@ -102,6 +124,9 @@ function prune() {
 const visibleBookings = () => Object.values(db.bookings)
   .filter(b => Date.parse(b.end) > Date.now() - 12 * 3600e3)
   .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+
+// 舊資料（before/after 兩個數字）轉成新的提醒清單
+for (const [id, b] of Object.entries(db.bookings)) { const c = cleanBooking(b); if (c) db.bookings[id] = c; else delete db.bookings[id]; }
 
 // ---- HTTP ----
 const app = express();
@@ -171,7 +196,10 @@ app.post('/test', auth, async (req, res) => {
   const sub = req.body?.subscription;
   if (!sub?.endpoint) return res.status(400).json({ error: 'no subscription' });
   try {
-    await webpush.sendNotification(sub, JSON.stringify({ title: '測試推播', body: '收到這則就代表推播設定成功 🎉' }));
+    const start = new Date(Date.now() + 10 * 60000).toISOString();
+    const end = new Date(Date.now() + 130 * 60000).toISOString();
+    await webpush.sendNotification(sub, JSON.stringify({ title: '測試推播', body: '收到這則就代表推播設定成功 🎉 點我看全螢幕提醒',
+      tag: 'test', alert: { title: '測試：圖書館預約即將開始', body: '', space: '享時小間 605（測試）', start, end } }));
     res.json({ ok: true });
   } catch (e) { res.status(502).json({ error: e.statusCode || e.message }); }
 });
@@ -214,7 +242,8 @@ async function runTick() {
       if (db.sent[r.id] || r.fireAt > now) continue;
       db.sent[r.id] = now;
       if (now - r.fireAt > 15 * 60000) continue;   // 晚超過 15 分鐘就不補發了
-      await pushAll(JSON.stringify({ title: r.title, body: r.body, tag: r.id }));
+      await pushAll(JSON.stringify({ title: r.title, body: r.body, tag: r.id,
+        alert: { title: r.title, body: r.body, space: b.space, start: b.start, end: b.end } }));
       sent++;
     }
   }

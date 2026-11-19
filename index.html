@@ -111,8 +111,31 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .chk input[type=checkbox]{width:22px; height:22px; accent-color:var(--brand); margin:0}
 .chk input[type=number]{width:72px; text-align:center}
 .chk input[type=number]:disabled{opacity:.4}
-#editor{width:calc(100% - 32px); max-width:440px; border-radius:20px; background:var(--card)}
+#editor{width:calc(100% - 32px); max-width:440px; max-height:calc(100% - 32px); border-radius:20px; background:var(--card)}
 #editor .sheet{padding:20px}
+.form select{font:inherit; font-size:15px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:10px; height:44px; padding:0 8px}
+.rm{display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center}
+.rm .val{display:flex; align-items:center; gap:6px; min-width:0}
+.rm .val input[type=number]{width:72px; text-align:center}
+.rm .val span{font-size:14px; color:var(--mute)}
+.rm .x{width:40px; height:44px; border:1px solid var(--line); background:none; color:var(--full); border-radius:10px; font-size:18px}
+.rm-when{grid-column:1 / -1; font-size:12px; color:var(--mute); margin-top:-4px}
+#rm-list{display:grid; gap:10px}
+#rm-list:empty::after{content:'沒有提醒（這筆預約不會通知）'; font-size:14px; color:var(--mute)}
+
+/* 全螢幕提醒 */
+#alarm{width:100%; max-width:none; height:100%; max-height:none; margin:0; background:var(--brand); color:var(--brand-ink)}
+#alarm .wrap{min-height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; gap:14px;
+  padding:calc(env(safe-area-inset-top) + 32px) 24px calc(env(safe-area-inset-bottom) + 32px)}
+#alarm .ring{font-size:64px; animation:ring 1s ease-in-out infinite}
+#alarm h3{font-size:28px; margin:0; line-height:1.3}
+#alarm .space{font-size:22px; font-weight:600}
+#alarm .time{font-size:56px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1}
+#alarm .left{font-size:17px; opacity:.85}
+#alarm button{margin-top:24px; width:100%; max-width:320px; min-height:58px; border:0; border-radius:18px; font-size:18px; font-weight:700;
+  background:var(--brand-ink); color:var(--brand)}
+@keyframes ring{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(4deg)}}
+@media (prefers-reduced-motion:reduce){ #alarm .ring{animation:none} }
 footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; line-height:1.6}
 @media (prefers-reduced-motion:reduce){ .bar i{transition:none} }
 </style>
@@ -197,21 +220,35 @@ footer{font-size:12px; color:var(--mute); text-align:center; margin-top:18px; li
   <form class="sheet form" id="edit-form" method="dialog">
     <b style="font-size:17px">編輯通知</b>
     <label>空間 <input id="e-space" maxlength="60" required></label>
-    <label>日期 <input id="e-date" type="date" required></label>
     <div class="two">
-      <label>開始 <input id="e-start" type="time" required></label>
-      <label>結束 <input id="e-end" type="time" required></label>
+      <label>開始日期 <input id="e-sdate" type="date" required></label>
+      <label>開始時間 <input id="e-start" type="time" required></label>
     </div>
-    <div class="chk"><input id="e-before-on" type="checkbox"><label for="e-before-on">開始前</label>
-      <input id="e-before" type="number" min="1" max="720" inputmode="numeric"><span>分鐘提醒</span></div>
-    <div class="chk"><input id="e-after-on" type="checkbox"><label for="e-after-on">開始後</label>
-      <input id="e-after" type="number" min="1" max="720" inputmode="numeric"><span>分鐘提醒</span></div>
+    <div class="two">
+      <label>結束日期 <input id="e-edate" type="date" required></label>
+      <label>結束時間 <input id="e-end" type="time" required></label>
+    </div>
+    <b style="font-size:15px; margin-top:4px">提醒</b>
+    <div id="rm-list"></div>
+    <button class="btn ghost small" type="button" id="rm-add">＋ 新增提醒</button>
     <div class="note err" id="e-msg"></div>
     <div class="two">
       <button class="btn ghost small" type="button" id="e-cancel">取消</button>
       <button class="btn primary small" type="submit">儲存</button>
     </div>
   </form>
+</dialog>
+
+<!-- 全螢幕提醒（點通知進來、或 app 開著時收到提醒） -->
+<dialog id="alarm">
+  <div class="wrap">
+    <div class="ring" aria-hidden="true">🔔</div>
+    <h3 id="al-title"></h3>
+    <div class="space" id="al-space"></div>
+    <div class="time" id="al-time"></div>
+    <div class="left" id="al-left"></div>
+    <button type="button" id="al-ok">知道了</button>
+  </div>
 </dialog>
 
 <script>
@@ -384,11 +421,16 @@ const fmtHM = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const active = () => bookings.filter(b => !b.deleted && new Date(b.end).getTime() > Date.now())
   .sort((a,b) => new Date(a.start) - new Date(b.start));
 
+// 提醒清單：{kind:'before',min} / {kind:'after',min} / {kind:'at',at}（舊格式 before/after 數字也看得懂）
+const listOf = b => Array.isArray(b.reminders) ? b.reminders : [
+  ...(b.before ? [{ kind:'before', min:b.before }] : []), ...(b.after ? [{ kind:'after', min:b.after }] : [])];
 function remindersOf(b){
-  const s = new Date(b.start).getTime(), out = [];
-  if(b.before) out.push({ at: s - b.before*60000, label:`開始前 ${b.before} 分` });
-  if(b.after)  out.push({ at: s + b.after*60000,  label:`開始後 ${b.after} 分` });
-  return out;
+  const s = new Date(b.start).getTime();
+  return listOf(b).map(r =>
+    r.kind === 'before' ? { at: s - r.min*60000, label: r.min ? `開始前 ${r.min} 分` : '開始時' } :
+    r.kind === 'after'  ? { at: s + r.min*60000, label: `開始後 ${r.min} 分` } :
+    { at: new Date(r.at).getTime(), label: `指定 ${fmtDay(new Date(r.at))}` }
+  ).filter(r => !isNaN(r.at)).sort((x,y) => x.at - y.at);
 }
 
 function renderAll(){
@@ -445,7 +487,7 @@ function readToggle(prefix){
   const v = parseInt($(prefix).value, 10);
   return v > 0 && v <= 720 ? v : NaN;
 }
-['d-before','d-after','e-before','e-after'].forEach(p =>
+['d-before','d-after'].forEach(p =>
   $(p+'-on').addEventListener('change', ()=>{ $(p).disabled = !$(p+'-on').checked; }));
 
 // ---- 總覽面板 ----
@@ -471,15 +513,65 @@ $('list').addEventListener('click', e=>{
 
 // ---- 編輯單筆 ----
 let editingId = null;
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const localDT = d => `${ymd(d)}T${fmtHM(d)}`;   // datetime-local 的格式
+
+// 一列提醒：[種類] [分鐘數 或 日期時間] [✕]，下面小字顯示實際會響的時間
+function rmRow(r){
+  const row = document.createElement('div'); row.className = 'rm';
+  row.innerHTML = `<select aria-label="提醒種類">
+      <option value="before">開始前</option><option value="after">開始後</option><option value="at">指定時間</option></select>
+    <div class="val"></div>
+    <button type="button" class="x" aria-label="刪除這則提醒">✕</button>
+    <div class="rm-when"></div>`;
+  const sel = row.querySelector('select'), val = row.querySelector('.val');
+  const draw = (kind, v) => {
+    val.innerHTML = kind === 'at'
+      ? `<input type="datetime-local" required style="width:100%">`
+      : `<input type="number" min="0" max="1440" inputmode="numeric" required><span>分鐘</span>`;
+    val.querySelector('input').value = v;
+    rmPreview();
+  };
+  sel.value = r.kind;
+  draw(r.kind, r.kind === 'at' ? localDT(new Date(r.at)) : r.min);
+  sel.addEventListener('change', ()=>{
+    const s = editorStart() || new Date();
+    draw(sel.value, sel.value === 'at' ? localDT(new Date(s.getTime() - 3600e3)) : (sel.value === 'before' ? 10 : 5));
+  });
+  row.querySelector('.x').addEventListener('click', ()=>row.remove());
+  return row;
+}
+function readRow(row){
+  const kind = row.querySelector('select').value, input = row.querySelector('.val input');
+  if(kind === 'at'){ const d = new Date(input.value); return isNaN(d) ? null : { kind, at: d.toISOString() }; }
+  const min = parseInt(input.value, 10);
+  return min >= 0 && min <= 1440 && !(kind === 'after' && min === 0) ? { kind, min } : null;
+}
+const editorStart = () => { const d = new Date(`${$('e-sdate').value}T${$('e-start').value}`); return isNaN(d) ? null : d; };
+function rmPreview(){
+  const s = editorStart();
+  $('rm-list').querySelectorAll('.rm').forEach(row=>{
+    const r = readRow(row), out = row.querySelector('.rm-when');
+    if(!r){ out.textContent = '請填好分鐘數或日期時間'; return; }
+    const at = r.kind === 'at' ? new Date(r.at) : s && new Date(s.getTime() + (r.kind === 'before' ? -1 : 1) * r.min * 60000);
+    out.textContent = at ? `→ ${fmtDay(at)} ${fmtHM(at)} 通知${at < new Date() ? '（已經過了）' : ''}` : '';
+  });
+}
+$('edit-form').addEventListener('input', rmPreview);
+$('rm-add').addEventListener('click', ()=>{
+  if($('rm-list').children.length >= 10) return;
+  $('rm-list').appendChild(rmRow({ kind:'before', min:10 })); rmPreview();
+});
+
 function openEditor(id){
   const b = bookings.find(x => x.id === id); if(!b) return;
   editingId = id;
   const s = new Date(b.start), e = new Date(b.end);
   $('e-space').value = b.space;
-  $('e-date').value = `${s.getFullYear()}-${pad(s.getMonth()+1)}-${pad(s.getDate())}`;
-  $('e-start').value = fmtHM(s); $('e-end').value = fmtHM(e);
-  fillToggle('e-before', b.before, settings.before || 10);
-  fillToggle('e-after', b.after, settings.after || 5);
+  $('e-sdate').value = ymd(s); $('e-start').value = fmtHM(s);
+  $('e-edate').value = ymd(e); $('e-end').value = fmtHM(e);
+  $('rm-list').replaceChildren(...listOf(b).map(rmRow));
+  rmPreview();
   $('e-msg').textContent = '';
   $('editor').showModal();
 }
@@ -488,14 +580,14 @@ $('edit-form').addEventListener('submit', ev=>{
   ev.preventDefault();
   const fail = t => { $('e-msg').textContent = t; };
   const space = $('e-space').value.trim();
-  const start = new Date(`${$('e-date').value}T${$('e-start').value}`);
-  let end = new Date(`${$('e-date').value}T${$('e-end').value}`);
+  const start = editorStart();
+  const end = new Date(`${$('e-edate').value}T${$('e-end').value}`);
   if(!space) return fail('請填空間名稱。');
-  if(isNaN(start) || isNaN(end)) return fail('請填好日期與時間。');
-  if(end <= start) end = new Date(end.getTime() + 864e5);   // 跨夜
-  const before = readToggle('e-before'), after = readToggle('e-after');
-  if(isNaN(before) || isNaN(after)) return fail('分鐘數請填 1～720。');
-  update(editingId, { space, start:start.toISOString(), end:end.toISOString(), before, after });
+  if(!start || isNaN(end)) return fail('請填好日期與時間。');
+  if(end <= start) return fail('結束時間要比開始晚（跨夜請把結束日期改成隔天）。');
+  const reminders = [...$('rm-list').children].map(readRow);
+  if(reminders.some(r => !r)) return fail('提醒的分鐘數請填 0～1440（開始後至少 1），或選好日期時間。');
+  update(editingId, { space, start:start.toISOString(), end:end.toISOString(), reminders });
   $('editor').close();
 });
 
@@ -558,6 +650,39 @@ $('push-btn').addEventListener('click', async ()=>{
     try{ await api('/test', { subscription: pushSub }); }catch(e){ $('push-sub').textContent='測試失敗：'+e.message; }
   }else enablePush();
 });
+
+// ---- 全螢幕提醒 ----
+let alarmData = null;
+function alarmTick(){
+  if(!alarmData || !$('alarm').open) return;
+  const s = new Date(alarmData.start), e = new Date(alarmData.end), now = Date.now();
+  const m = Math.round((s - now) / 60000);
+  $('al-left').textContent =
+    now >= e ? '這段預約已經結束' :
+    m > 0 ? `還有 ${m >= 60 ? `${Math.floor(m/60)} 小時 ${m%60} 分` : `${m} 分鐘`}開始` :
+    m === 0 ? '現在開始，記得刷卡報到' : `已開始 ${-m} 分鐘，還沒刷卡請立刻去報到`;
+}
+function showAlarm(a){
+  if(!a || !a.start) return;
+  alarmData = a;
+  const s = new Date(a.start);
+  $('al-title').textContent = a.title || '圖書館預約提醒';
+  $('al-space').textContent = a.space || '';
+  $('al-time').textContent = fmtHM(s);
+  if(!$('alarm').open) $('alarm').showModal();
+  alarmTick();
+  try{ navigator.vibrate && navigator.vibrate([400,150,400,150,800]); }catch(e){}
+}
+$('al-ok').addEventListener('click', ()=>$('alarm').close());
+setInterval(alarmTick, 15000);
+navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', e=>{
+  if(e.data && e.data.type === 'alert') showAlarm(e.data.alert);
+});
+// 從通知點進來：網址帶著 ?alert=...
+try{
+  const q = new URLSearchParams(location.search).get('alert');
+  if(q){ history.replaceState(null, '', location.pathname); showAlarm(JSON.parse(q)); }
+}catch(e){}
 
 // ---- 啟動 ----
 renderAll();   // 先用手機裡的快取顯示
